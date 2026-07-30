@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SVG to TXT Converter with Live Preview</title>
+    <title>SVG to TXT Converter & Live Preview</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
@@ -48,21 +48,21 @@
 
     <main class="max-w-4xl w-full mx-auto flex-1 flex flex-col gap-6">
         
-        <!-- Khung Upload / Chọn File SVG -->
+        <!-- Khung Upload / Chọn File SVG (Đã fix thuộc tính accept để mở Trình quản lý Tệp thay vì GG Photos) -->
         <div id="dropZone" class="border-2 border-dashed border-slate-700 hover:border-indigo-500/60 bg-slate-800/40 hover:bg-slate-800/80 rounded-2xl p-8 text-center cursor-pointer transition-all flex flex-col items-center justify-center min-h-[220px]">
-            <input type="file" id="fileInput" accept=".svg,image/svg+xml" class="hidden">
+            <input type="file" id="fileInput" accept=".svg,text/plain,text/xml,application/xml" class="hidden">
             <div class="p-3 bg-slate-700/50 text-indigo-400 rounded-full mb-3 border border-slate-600">
-                <i data-lucide="image" class="w-8 h-8"></i>
+                <i data-lucide="file-text" class="w-8 h-8"></i>
             </div>
             <h3 class="text-base font-medium text-slate-200 mb-1">
-                Chạm vào đây để chọn file SVG
+                Chạm vào đây để chọn file SVG từ Tệp (Files)
             </h3>
             <p class="text-slate-400 text-xs mb-4">
-                Hỗ trợ đọc và hiển thị bản đồ SVG Sinzakia hoặc icon bất kỳ
+                Tự động lọc và hiển thị chuẩn mã SVG Sinzakia hoặc bản đồ vector
             </p>
             <div class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded-lg transition-colors shadow-lg shadow-indigo-600/20">
-                <i data-lucide="upload" class="w-4 h-4"></i>
-                Chọn file từ bộ nhớ
+                <i data-lucide="folder-open" class="w-4 h-4"></i>
+                Mở quản lý tệp trên điện thoại
             </div>
         </div>
 
@@ -72,7 +72,7 @@
             <span id="toastMsg">Thao tác thành công!</span>
         </div>
 
-        <!-- Kết quả: Preview & TXT Code -->
+        <!-- Kết quả Workspace: Live Preview + TXT Code -->
         <div id="resultWorkspace" class="hidden flex flex-col gap-6 flex-1">
             
             <!-- 1. KHUNG PREVIEW (XEM TRƯỚC HÌNH ẢNH SVG) -->
@@ -80,14 +80,14 @@
                 <div class="flex items-center justify-between border-b border-slate-700/60 pb-3">
                     <span class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
                         <i data-lucide="eye" class="w-4 h-4 text-indigo-400"></i>
-                        Xem trước hình ảnh (Preview)
+                        Xem trước hình ảnh (Preview Live)
                     </span>
                     <span id="statFileName" class="text-xs text-indigo-400 font-mono bg-indigo-950/60 px-2.5 py-1 rounded-md border border-indigo-800/50">filename.svg</span>
                 </div>
                 
-                <!-- Vùng hiển thị hình ảnh SVG -->
+                <!-- Vùng render hiển thị hình ảnh SVG -->
                 <div id="svgPreview" class="w-full h-64 md:h-80 bg-slate-950 rounded-xl p-3 border border-slate-800/80 flex items-center justify-center overflow-hidden">
-                    <!-- Mã SVG thực tế sẽ được nhúng vào đây để hiển thị hình ảnh -->
+                    <!-- Thẻ SVG thực tế sẽ được đưa vào đây -->
                 </div>
             </div>
 
@@ -96,8 +96,8 @@
                 <!-- Toolbar -->
                 <div class="bg-slate-800 px-4 py-3 border-b border-slate-700 flex flex-wrap items-center justify-between gap-3">
                     <span class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                        <i data-lucide="file-text" class="w-4 h-4 text-emerald-400"></i>
-                        Mã .TXT nén siêu nhẹ
+                        <i data-lucide="code-2" class="w-4 h-4 text-emerald-400"></i>
+                        Mã .TXT nén phẳng (1 dòng)
                     </span>
 
                     <div class="flex items-center gap-2">
@@ -159,7 +159,7 @@
             }, 2500);
         }
 
-        // Nén mã SVG thành 1 dòng
+        // Tối ưu và nén mã SVG về 1 dòng phẳng
         function minifySvg(svgString) {
             return svgString
                 .replace(/<!--[\s\S]*?-->/g, '')
@@ -176,15 +176,22 @@
             const reader = new FileReader();
             reader.onload = function(e) {
                 const content = e.target.result;
+                
+                // Kiểm tra xem có đúng định dạng SVG/XML hay không
+                if (!content.includes('<svg')) {
+                    alert('File đã chọn không chứa mã SVG hợp lệ. Vui lòng chọn đúng file .svg trong mục Tệp/Files.');
+                    return;
+                }
+
                 state.minifiedSvgCode = minifySvg(content);
 
-                // 1. Hiển thị thông tin
+                // Update UI Text & Data
                 statFileName.textContent = state.fileName;
                 txtOutput.value = state.minifiedSvgCode;
                 sizeStatus.textContent = `Dung lượng: ${(new Blob([state.minifiedSvgCode]).size / 1024).toFixed(1)} KB`;
                 charCount.textContent = `${state.minifiedSvgCode.length.toLocaleString()} Ký tự`;
 
-                // 2. Render ảnh xem trước (Preview)
+                // Render Live Preview
                 svgPreview.innerHTML = content;
                 const svgEl = svgPreview.querySelector('svg');
                 if (svgEl) {
@@ -213,7 +220,7 @@
             e.dataTransfer.files[0] && processSvgFile(e.dataTransfer.files[0]);
         });
 
-        // Sao chép
+        // Nút Sao chép
         copyBtn.addEventListener('click', async () => {
             if (!txtOutput.value) return;
             try {
@@ -228,7 +235,7 @@
             }
         });
 
-        // Tải xuống file .TXT
+        // Nút Tải xuống file .TXT
         downloadTxtBtn.addEventListener('click', () => {
             if (!txtOutput.value) return;
             const blob = new Blob([txtOutput.value], { type: 'text/plain;charset=utf-8' });
@@ -243,6 +250,7 @@
             showToast('Đã tải thành công file .TXT!');
         });
 
+        // Nút Làm mới
         clearBtn.addEventListener('click', () => {
             fileInput.value = '';
             txtOutput.value = '';
