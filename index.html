@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JSON to TXT & Minimal PDF Converter</title>
+    <title>JSON to TXT, PDF & AI Copier</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
@@ -31,14 +31,14 @@
         <div>
             <div class="flex items-center gap-3">
                 <div class="p-2.5 bg-indigo-600/20 text-indigo-400 rounded-xl border border-indigo-500/30">
-                    <i data-lucide="file-output" class="w-7 h-7"></i>
+                    <i data-lucide="bot" class="w-7 h-7"></i>
                 </div>
                 <h1 class="text-2xl font-bold bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-                    JSON to TXT / Minimal PDF Converter
+                    JSON Optimizer & AI Copier
                 </h1>
             </div>
             <p class="text-slate-400 text-sm mt-1">
-                Chuyển đổi file JSON sang <span class="text-indigo-400 font-semibold">.TXT nén tối thiểu</span> hoặc <span class="text-emerald-400 font-semibold">.PDF siêu nhẹ</span> dành cho AI
+                Nén JSON 20MB xuống <span class="text-indigo-400 font-semibold">~1MB</span>, sao chép 1-Click hoặc xuất <span class="text-emerald-400 font-semibold">.TXT / .PDF</span> cho DeepSeek
             </p>
         </div>
 
@@ -60,7 +60,7 @@
                 Kéo thả file JSON vào đây
             </h3>
             <p class="text-slate-400 text-sm mb-4">
-                Chuyển đổi thành dạng .txt hoặc .pdf siêu nhỏ để DeepSeek đọc dễ dàng
+                Tự động rút gọn cấu trúc dạng Bảng để DeepSeek đọc 100% dữ liệu
             </p>
             <div class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition-colors shadow-lg shadow-indigo-600/20">
                 <i data-lucide="file-text" class="w-4 h-4"></i>
@@ -71,7 +71,7 @@
         <!-- Loading -->
         <div id="loadingBox" class="hidden border border-slate-800 bg-slate-800/50 rounded-2xl p-12 text-center flex flex-col items-center justify-center min-h-[300px]">
             <div class="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
-            <p class="text-slate-300 font-medium">Đang chuyển đổi định dạng dữ liệu...</p>
+            <p class="text-slate-300 font-medium">Đang chuyển đổi định dạng dữ liệu cho AI...</p>
         </div>
 
         <!-- Thông Báo Lỗi -->
@@ -117,21 +117,40 @@
                 <!-- Toolbar -->
                 <div class="bg-slate-800 px-4 py-3 border-b border-slate-700 flex flex-wrap items-center justify-between gap-3">
                     
-                    <span class="text-xs font-semibold text-slate-300 flex items-center gap-2">
-                        <i data-lucide="file-type" class="w-4 h-4 text-indigo-400"></i>
-                        Xuất sang file khác:
-                    </span>
+                    <!-- Chọn chế độ xem -->
+                    <div class="flex items-center gap-1 bg-slate-900/80 p-1 rounded-lg border border-slate-700/50">
+                        <button id="modeAiCompactBtn" class="px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 bg-indigo-600 text-white shadow-sm" title="Rút gọn cấu trúc lặp lại, tối ưu siêu nhỏ cho AI">
+                            <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+                            Tối ưu cho AI (Dạng Bảng)
+                        </button>
+                        <button id="modeMinifiedBtn" class="px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 text-slate-400 hover:text-slate-200">
+                            <i data-lucide="code" class="w-3.5 h-3.5"></i>
+                            Minify gốc (1 dòng)
+                        </button>
+                    </div>
 
-                    <!-- Các nút tải xuất file -->
+                    <!-- Các nút Sao chép & Tải file -->
                     <div class="flex items-center gap-2 flex-wrap">
-                        <button id="downloadTxtBtn" class="px-3.5 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors flex items-center gap-1.5 shadow-md shadow-indigo-600/20">
-                            <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
-                            Tải file .TXT (Dạng Bảng)
+                        <button id="copyPromptBtn" class="px-3 py-1.5 text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg transition-colors flex items-center gap-1.5 border border-slate-600" title="Chép kèm lời giải thích cấu trúc cho DeepSeek">
+                            <i data-lucide="message-square-code" class="w-3.5 h-3.5"></i>
+                            Chép kèm Prompt AI
                         </button>
 
-                        <button id="downloadPdfBtn" class="px-3.5 py-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors flex items-center gap-1.5 shadow-md shadow-emerald-600/20">
+                        <button id="copyBtn" class="px-4 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-all flex items-center gap-2 shadow-md shadow-indigo-600/20 active:scale-95">
+                            <i data-lucide="copy" class="w-4 h-4"></i>
+                            <span id="copyText">Sao chép dữ liệu</span>
+                        </button>
+
+                        <div class="h-4 w-[1px] bg-slate-700 mx-1 hidden sm:block"></div>
+
+                        <button id="downloadTxtBtn" class="px-3 py-1.5 text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg transition-colors flex items-center gap-1.5 border border-slate-600" title="Tải file .txt">
+                            <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+                            .TXT
+                        </button>
+
+                        <button id="downloadPdfBtn" class="px-3 py-1.5 text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg transition-colors flex items-center gap-1.5 border border-slate-600" title="Tải file .pdf">
                             <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i>
-                            Tải file .PDF siêu nhẹ
+                            .PDF
                         </button>
                     </div>
                 </div>
@@ -143,7 +162,7 @@
 
                 <!-- Footer -->
                 <div class="bg-slate-900 px-4 py-2 text-xs text-slate-500 border-t border-slate-800 flex justify-between items-center">
-                    <span>Chuỗi văn bản tối ưu sẵn sàng chuyển đổi</span>
+                    <span id="statusNote">Dữ liệu sẵn sàng gửi cho AI</span>
                     <span id="charCount">0 Ký tự</span>
                 </div>
             </div>
@@ -156,8 +175,12 @@
         let state = {
             fileName: '',
             originalSize: 0,
+            rawJsonObj: null,
+            minifiedJson: '',
+            minifiedSize: 0,
             aiCompactJson: '',
-            aiCompactSize: 0
+            aiCompactSize: 0,
+            currentMode: 'ai' // 'ai' | 'minified'
         };
 
         const dropZone = document.getElementById('dropZone');
@@ -168,16 +191,23 @@
         const resultWorkspace = document.getElementById('resultWorkspace');
         const jsonOutput = document.getElementById('jsonOutput');
         const clearBtn = document.getElementById('clearBtn');
+        const copyBtn = document.getElementById('copyBtn');
+        const copyPromptBtn = document.getElementById('copyPromptBtn');
         const downloadTxtBtn = document.getElementById('downloadTxtBtn');
         const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+        const copyText = document.getElementById('copyText');
         const toast = document.getElementById('toast');
         const toastMsg = document.getElementById('toastMsg');
+        
+        const modeAiCompactBtn = document.getElementById('modeAiCompactBtn');
+        const modeMinifiedBtn = document.getElementById('modeMinifiedBtn');
 
         const statFileName = document.getElementById('statFileName');
         const statOriginalSize = document.getElementById('statOriginalSize');
         const statOptimizedSize = document.getElementById('statOptimizedSize');
         const statSavedPercent = document.getElementById('statSavedPercent');
         const charCount = document.getElementById('charCount');
+        const statusNote = document.getElementById('statusNote');
 
         function formatBytes(bytes) {
             if (bytes === 0) return '0 Bytes';
@@ -187,8 +217,15 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
-        function showToast(message) {
+        function showToast(message, isError = false) {
             toastMsg.textContent = message;
+            if (isError) {
+                toast.classList.remove('bg-emerald-600');
+                toast.classList.add('bg-rose-600');
+            } else {
+                toast.classList.remove('bg-rose-600');
+                toast.classList.add('bg-emerald-600');
+            }
             toast.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-3');
             toast.classList.add('opacity-100', 'translate-y-0');
             setTimeout(() => {
@@ -197,7 +234,7 @@
             }, 3000);
         }
 
-        // Chuyển đổi JSON dạng Bảng (Siêu gọn)
+        // Kỹ thuật nén cấu trúc Bảng cho AI
         function convertToTableFormat(data) {
             if (Array.isArray(data) && data.length > 0 && typeof data[0] === 'object' && data[0] !== null) {
                 const keys = Array.from(new Set(data.flatMap(obj => Object.keys(obj))));
@@ -232,9 +269,14 @@
             reader.onload = function(e) {
                 try {
                     const content = e.target.result;
-                    const parsedObj = JSON.parse(content);
+                    state.rawJsonObj = JSON.parse(content);
 
-                    const compactObj = convertToTableFormat(parsedObj);
+                    // 1. Minify tiêu chuẩn
+                    state.minifiedJson = JSON.stringify(state.rawJsonObj);
+                    state.minifiedSize = new Blob([state.minifiedJson]).size;
+
+                    // 2. Chuyển đổi dạng Bảng tối ưu cho AI
+                    const compactObj = convertToTableFormat(state.rawJsonObj);
                     state.aiCompactJson = JSON.stringify(compactObj);
                     state.aiCompactSize = new Blob([state.aiCompactJson]).size;
 
@@ -262,7 +304,22 @@
             const saved = ((state.originalSize - state.aiCompactSize) / state.originalSize * 100).toFixed(1);
             statSavedPercent.textContent = `${saved}%`;
 
-            jsonOutput.value = state.aiCompactJson;
+            switchMode('ai');
+        }
+
+        function switchMode(mode) {
+            state.currentMode = mode;
+            if (mode === 'ai') {
+                modeAiCompactBtn.className = 'px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 bg-indigo-600 text-white shadow-sm';
+                modeMinifiedBtn.className = 'px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 text-slate-400 hover:text-slate-200';
+                jsonOutput.value = state.aiCompactJson;
+                statusNote.textContent = `Đã nén dạng Bảng (Siêu gọn cho AI): ${formatBytes(state.aiCompactSize)}`;
+            } else {
+                modeMinifiedBtn.className = 'px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 bg-indigo-600 text-white shadow-sm';
+                modeAiCompactBtn.className = 'px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 text-slate-400 hover:text-slate-200';
+                jsonOutput.value = state.minifiedJson;
+                statusNote.textContent = `Đạng Minify chuẩn: ${formatBytes(state.minifiedSize)}`;
+            }
             charCount.textContent = `${jsonOutput.value.length.toLocaleString()} Ký tự`;
         }
 
@@ -277,7 +334,69 @@
             e.dataTransfer.files[0] && processFile(e.dataTransfer.files[0]);
         });
 
-        // Xuất file .TXT nén
+        modeAiCompactBtn.addEventListener('click', () => switchMode('ai'));
+        modeMinifiedBtn.addEventListener('click', () => switchMode('minified'));
+
+        // Hàm sao chép đa tầng hoạt động tối ưu trên môi trường Web Deploy (HTTPS)
+        async function performCopy(textToCopy) {
+            if (!textToCopy) return;
+
+            // Cách 1: Async Clipboard API chuẩn HTTPS (Nhanh & nhạy nhất khi deploy)
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                try {
+                    await navigator.clipboard.writeText(textToCopy);
+                    onCopySuccess();
+                    return;
+                } catch (e) {
+                    console.warn("navigator.clipboard.writeText lỗi, thử Blob...", e);
+                }
+            }
+
+            // Cách 2: Dùng ClipboardItem với Blob cho dữ liệu siêu lớn
+            if (navigator.clipboard && window.ClipboardItem) {
+                try {
+                    const blob = new Blob([textToCopy], { type: 'text/plain' });
+                    const item = new ClipboardItem({ 'text/plain': blob });
+                    await navigator.clipboard.write([item]);
+                    onCopySuccess();
+                    return;
+                } catch (e) {
+                    console.warn("ClipboardItem lỗi, chuyển sang execCommand", e);
+                }
+            }
+
+            // Cách 3: Fallback DOM
+            try {
+                jsonOutput.focus();
+                jsonOutput.select();
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    onCopySuccess();
+                    return;
+                }
+            } catch (e) {
+                console.error("execCommand lỗi", e);
+            }
+
+            showToast("Trình duyệt không cấp quyền sao chép!", true);
+        }
+
+        function onCopySuccess() {
+            copyText.textContent = 'Đã chép!';
+            showToast('Đã sao chép vào bộ nhớ tạm!');
+            setTimeout(() => {
+                copyText.textContent = 'Sao chép dữ liệu';
+            }, 2000);
+        }
+
+        copyBtn.addEventListener('click', () => performCopy(jsonOutput.value));
+
+        copyPromptBtn.addEventListener('click', () => {
+            const promptHeader = "Mô tả: Đây là dữ liệu JSON đã được tối ưu dạng Bảng (Headers + Matrix Data Rows) để tiết kiệm dung lượng. Hãy đọc và phân tích dữ liệu dưới đây:\n\n";
+            performCopy(promptHeader + jsonOutput.value);
+        });
+
+        // Xuất file .TXT
         downloadTxtBtn.addEventListener('click', () => {
             if (!jsonOutput.value) return;
             const promptHeader = "Mô tả: Đây là dữ liệu JSON đã được rút gọn cấu trúc dạng Bảng (Headers + Matrix Data Rows) cho AI:\n\n";
@@ -285,12 +404,12 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = state.fileName.replace('.json', '.txt');
+            a.download = state.fileName ? state.fileName.replace('.json', '.txt') : 'ai-data.txt';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            showToast('Đã xuất thành công file .TXT!');
+            showToast('Đã tải xuống file .TXT!');
         });
 
         // Xuất file .PDF siêu gọn
@@ -309,7 +428,7 @@
                 doc.setFontSize(7);
 
                 const text = jsonOutput.value;
-                const lines = doc.splitTextToSize(text, 180); // Tự canh chỉnh độ rộng lề A4
+                const lines = doc.splitTextToSize(text, 180);
                 
                 let y = 10;
                 const pageHeight = 280;
@@ -323,8 +442,8 @@
                     y += 3.5;
                 }
 
-                doc.save(state.fileName.replace('.json', '-minimal.pdf'));
-                showToast('Đã xuất thành công file .PDF siêu nhẹ!');
+                doc.save(state.fileName ? state.fileName.replace('.json', '-minimal.pdf') : 'ai-data.pdf');
+                showToast('Đã tải xuống file .PDF siêu nhẹ!');
             } catch (err) {
                 alert('Lỗi tạo PDF: ' + err.message);
             }
