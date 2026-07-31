@@ -5,10 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🎂 Birthday RTS - AoH Style</title>
     <style>
-        /* ============================================
-           STYLE - Tất cả CSS trong 1 file
-           ============================================ */
-        
         /* ========== RESET ========== */
         * {
             margin: 0;
@@ -49,16 +45,18 @@
             backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 24px;
-            padding: 50px 60px;
-            width: 450px;
-            max-width: 90%;
+            padding: 40px 50px;
+            width: 480px;
+            max-width: 92%;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+            max-height: 90vh;
+            overflow-y: auto;
         }
 
         .login-box h1 {
             text-align: center;
-            font-size: 32px;
-            margin-bottom: 8px;
+            font-size: 30px;
+            margin-bottom: 4px;
             background: linear-gradient(135deg, #e94560, #fbbf24);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -67,31 +65,31 @@
         .login-box .subtitle {
             text-align: center;
             color: #888;
-            font-size: 14px;
-            margin-bottom: 30px;
+            font-size: 13px;
+            margin-bottom: 20px;
         }
 
         .form-group {
-            margin-bottom: 18px;
+            margin-bottom: 14px;
         }
 
         .form-group label {
             display: block;
             font-size: 13px;
             color: #aaa;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
             font-weight: 600;
         }
 
         .form-group input,
         .form-group select {
             width: 100%;
-            padding: 12px 16px;
-            border-radius: 12px;
+            padding: 10px 14px;
+            border-radius: 10px;
             border: 1px solid rgba(255, 255, 255, 0.1);
             background: rgba(255, 255, 255, 0.05);
             color: #fff;
-            font-size: 15px;
+            font-size: 14px;
             transition: 0.3s;
         }
 
@@ -105,6 +103,45 @@
         .form-group select option {
             background: #1a1a2e;
             color: #fff;
+        }
+
+        .nation-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+            border: 2px solid transparent;
+            margin-bottom: 4px;
+        }
+
+        .nation-option:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .nation-option.selected {
+            border-color: #ffd700;
+            background: rgba(255, 215, 0, 0.1);
+        }
+
+        .nation-option .color-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .nation-option .nation-name {
+            font-size: 14px;
+            flex: 1;
+        }
+
+        .nation-option .nation-cities {
+            font-size: 11px;
+            color: #888;
         }
 
         .btn-primary {
@@ -136,8 +173,8 @@
             text-align: center;
             font-size: 12px;
             color: #666;
-            margin-top: 15px;
-            padding: 10px;
+            margin-top: 12px;
+            padding: 8px;
             background: rgba(255, 255, 255, 0.03);
             border-radius: 8px;
         }
@@ -166,36 +203,37 @@
 
         /* ========== SIDEBAR ========== */
         #sidebar {
-            width: 230px;
+            width: 220px;
             background: #1a1a2e;
-            padding: 12px;
+            padding: 10px 12px;
             border-right: 2px solid #e94560;
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 5px;
             overflow-y: auto;
             flex-shrink: 0;
+            z-index: 10;
         }
 
         #sidebar h2 {
             color: #e94560;
-            font-size: 18px;
+            font-size: 16px;
             text-align: center;
         }
 
         #connection-status {
             text-align: center;
-            font-size: 11px;
-            padding: 4px;
+            font-size: 10px;
+            padding: 3px;
             background: #0a0a1a;
             border-radius: 4px;
         }
 
         #player-info {
             background: #0f3460;
-            padding: 10px;
+            padding: 8px 10px;
             border-radius: 8px;
-            font-size: 13px;
+            font-size: 12px;
         }
 
         #player-info .label {
@@ -210,24 +248,25 @@
         #player-name-display {
             color: #ffd700;
             font-weight: bold;
-            margin-bottom: 4px;
+            margin-bottom: 3px;
+            font-size: 13px;
         }
 
         #player-list {
             flex: 1;
             overflow-y: auto;
             background: #0f3460;
-            padding: 8px;
+            padding: 6px 8px;
             border-radius: 8px;
-            min-height: 100px;
-            max-height: 200px;
+            min-height: 80px;
+            max-height: 180px;
         }
 
         .player-item {
-            padding: 4px 8px;
+            padding: 3px 6px;
             border-left: 3px solid;
-            margin-bottom: 3px;
-            font-size: 12px;
+            margin-bottom: 2px;
+            font-size: 11px;
             display: flex;
             justify-content: space-between;
             border-radius: 2px;
@@ -241,6 +280,7 @@
             align-items: center;
             background: #0a0a1a;
             position: relative;
+            overflow: hidden;
         }
 
         #gameCanvas {
@@ -249,47 +289,50 @@
             cursor: pointer;
             border: 2px solid #e94560;
             border-radius: 4px;
+            display: block;
+            image-rendering: auto;
         }
 
         /* ========== INFO PANEL ========== */
         #info-panel {
-            width: 230px;
+            width: 220px;
             background: #1a1a2e;
-            padding: 12px;
+            padding: 10px 12px;
             border-left: 2px solid #e94560;
             overflow-y: auto;
             flex-shrink: 0;
+            z-index: 10;
         }
 
         #info-panel h3 {
             color: #e94560;
-            font-size: 15px;
-            margin-bottom: 8px;
+            font-size: 14px;
+            margin-bottom: 6px;
         }
 
         #info-content {
             background: #0f3460;
-            padding: 12px;
+            padding: 10px;
             border-radius: 8px;
-            font-size: 12px;
+            font-size: 11px;
             line-height: 1.8;
-            min-height: 200px;
-            max-height: calc(100vh - 80px);
+            min-height: 150px;
+            max-height: calc(100vh - 70px);
             overflow-y: auto;
         }
 
         #info-content button {
-            font-size: 12px;
+            font-size: 11px;
         }
 
         #info-content hr {
             border-color: #333;
-            margin: 6px 0;
+            margin: 5px 0;
         }
 
         /* ========== SCROLLBAR ========== */
         ::-webkit-scrollbar {
-            width: 5px;
+            width: 4px;
         }
 
         ::-webkit-scrollbar-track {
@@ -304,45 +347,59 @@
         /* ========== RESPONSIVE ========== */
         @media (max-width: 768px) {
             .login-box {
-                padding: 30px 25px;
+                padding: 25px 20px;
             }
             .login-box h1 {
-                font-size: 24px;
+                font-size: 22px;
             }
             #sidebar {
-                width: 180px;
-                padding: 8px;
+                width: 160px;
+                padding: 6px 8px;
             }
             #info-panel {
-                width: 180px;
-                padding: 8px;
+                width: 160px;
+                padding: 6px 8px;
             }
             #sidebar h2 {
-                font-size: 14px;
-            }
-            #player-info {
-                font-size: 11px;
-                padding: 6px;
-            }
-        }
-
-        @media (max-width: 600px) {
-            #sidebar {
-                width: 140px;
-            }
-            #info-panel {
-                width: 140px;
-            }
-            #sidebar h2 {
-                font-size: 12px;
+                font-size: 13px;
             }
             #player-info {
                 font-size: 10px;
-                padding: 4px;
+                padding: 5px;
             }
             #info-content {
                 font-size: 10px;
                 padding: 6px;
+            }
+            .nation-option .nation-name {
+                font-size: 12px;
+            }
+        }
+
+        @media (max-width: 500px) {
+            #sidebar {
+                width: 120px;
+            }
+            #info-panel {
+                width: 120px;
+            }
+            #sidebar h2 {
+                font-size: 11px;
+            }
+            #player-info {
+                font-size: 9px;
+                padding: 4px;
+            }
+            #info-content {
+                font-size: 9px;
+                padding: 4px;
+            }
+            .nation-option .nation-name {
+                font-size: 10px;
+            }
+            .nation-option .color-dot {
+                width: 10px;
+                height: 10px;
             }
         }
     </style>
@@ -361,7 +418,14 @@
             </div>
 
             <div class="form-group">
-                <label>🏳️ Chọn màu</label>
+                <label>🏳️ Chọn quốc gia của bạn</label>
+                <div id="nation-list" style="max-height:200px;overflow-y:auto;background:rgba(255,255,255,0.03);border-radius:8px;padding:4px;">
+                    <div style="text-align:center;color:#888;font-size:12px;padding:10px;">Đang tải danh sách quốc gia...</div>
+                </div>
+            </div>
+
+            <div class="form-group" style="display:none;" id="color-select-group">
+                <label>🎨 Màu sắc</label>
                 <select id="player-color">
                     <option value="#e94560">🔴 Đỏ</option>
                     <option value="#4ade80">🟢 Xanh lá</option>
@@ -403,9 +467,9 @@
     <div id="game-container">
         <!-- Sidebar -->
         <div id="sidebar">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
                 <h2>🎂 RTS</h2>
-                <span id="connection-status" style="font-size:10px;padding:2px 8px;border-radius:10px;background:#333;">🟡 Đang kết nối...</span>
+                <span id="connection-status" style="font-size:9px;padding:2px 6px;border-radius:8px;background:#333;">🟡 Đang kết nối...</span>
             </div>
 
             <div id="player-info">
@@ -419,7 +483,7 @@
             </div>
 
             <div id="player-list">
-                <div style="color:#888;font-size:11px;text-align:center;margin-bottom:4px;">👥 Người chơi</div>
+                <div style="color:#888;font-size:10px;text-align:center;margin-bottom:3px;">👥 Người chơi</div>
             </div>
         </div>
 
@@ -432,14 +496,14 @@
         <div id="info-panel">
             <h3>📌 Thông tin</h3>
             <div id="info-content">
-                <p style="color:#888;font-size:12px;">Click vào thành phố để quản lý</p>
-                <p style="color:#555;font-size:10px;margin-top:5px;">📌 Click phải để xây dựng</p>
-                <p style="color:#555;font-size:10px;">🎯 Click thành phố của bạn → "Điều quân"</p>
+                <p style="color:#888;font-size:11px;">Click vào thành phố để quản lý</p>
+                <p style="color:#555;font-size:9px;margin-top:3px;">📌 Click phải để xây dựng</p>
+                <p style="color:#555;font-size:9px;">🎯 Click thành phố của bạn → "Điều quân"</p>
             </div>
         </div>
     </div>
 
-    <!-- ========== JAVASCRIPT - GAME.JS ========== -->
+    <!-- ========== JAVASCRIPT - ALL IN ONE ========== -->
     <script>
         // ============================================================
         // 🎮 GAME.JS - Toàn bộ code trong 1 file HTML
@@ -465,12 +529,15 @@
         let playerId = null;
         let playerName = 'Chiến Binh';
         let playerColor = '#e94560';
+        let selectedNationId = null;
+        let selectedNationName = null;
         let roomId = null;
         let isHost = false;
         let mapData = null;
         let db = null;
         let gameRef = null;
         let isFirebaseReady = false;
+        let nationsData = [];
 
         let gameState = {
             cities: [],
@@ -481,10 +548,26 @@
         };
 
         let selectedCity = null;
-        let selectedUnit = null;
         let isSelectingUnit = false;
         let peerConnections = {};
         let dataChannels = {};
+
+        // Zoom & Pan
+        let camera = {
+            x: 0,
+            y: 0,
+            zoom: 1,
+            targetX: 0,
+            targetY: 0,
+            targetZoom: 1,
+            isAnimating: false,
+        };
+
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let dragStartCamX = 0;
+        let dragStartCamY = 0;
 
         // ==================== CÔNG TRÌNH ====================
         const BUILDINGS = {
@@ -563,30 +646,199 @@
                 canvas.height = mapData.info?.height || 881;
 
                 const burgs = mapData.burgs || [];
-                gameState.cities = burgs.map(burg => ({
-                    id: burg.i,
-                    name: burg.name || `City ${burg.i}`,
-                    x: burg.x,
-                    y: burg.y,
-                    owner: null,
-                    population: burg.population || 1000,
-                    army: Math.floor(Math.random() * 8) + 5,
-                    gold: 100,
-                    wood: 50,
-                    stone: 30,
-                    buildings: [],
-                    isCapital: burg.capital === 1,
-                    defense: 10,
-                    type: burg.type || 'Generic',
-                    morale: 70,
-                    isUnderAttack: false,
+                const cultures = mapData.cultures || [];
+
+                // Lấy danh sách quốc gia
+                nationsData = cultures.filter(c => c.name && c.name !== 'Wildlands').map(c => ({
+                    id: c.i,
+                    name: c.name,
+                    code: c.code || c.name.substring(0, 2).toUpperCase(),
+                    color: c.color || '#888',
+                    type: c.type || 'Generic',
+                    cities: [],
                 }));
+
+                // Hiển thị danh sách quốc gia lên login
+                renderNationList();
+
+                gameState.cities = burgs.map(burg => {
+                    let ownerId = null;
+                    let ownerColor = '#666';
+                    let ownerName = null;
+
+                    // Tìm quốc gia sở hữu thành phố này
+                    if (burg.culture !== undefined) {
+                        const culture = cultures.find(c => c.i === burg.culture);
+                        if (culture && culture.name !== 'Wildlands') {
+                            ownerId = culture.i;
+                            ownerColor = culture.color || '#888';
+                            ownerName = culture.name;
+                            // Thêm city vào nation
+                            const nation = nationsData.find(n => n.id === culture.i);
+                            if (nation) {
+                                nation.cities.push({
+                                    id: burg.i,
+                                    name: burg.name || `City ${burg.i}`,
+                                    x: burg.x,
+                                    y: burg.y,
+                                });
+                            }
+                        }
+                    }
+
+                    return {
+                        id: burg.i,
+                        name: burg.name || `City ${burg.i}`,
+                        x: burg.x,
+                        y: burg.y,
+                        owner: ownerId,
+                        ownerColor: ownerColor,
+                        ownerName: ownerName,
+                        population: burg.population || 1000,
+                        army: Math.floor(Math.random() * 8) + 5,
+                        gold: 100,
+                        wood: 50,
+                        stone: 30,
+                        buildings: [],
+                        isCapital: burg.capital === 1,
+                        defense: 10,
+                        type: burg.type || 'Generic',
+                        morale: 70,
+                        isUnderAttack: false,
+                    };
+                });
+
+                // Cập nhật lại danh sách quốc gia với số thành phố
+                renderNationList();
+
+                console.log('✅ Đã tải bản đồ!');
+                console.log(`📊 ${nationsData.length} quốc gia, ${gameState.cities.length} thành phố`);
+
+                // Zoom vào quốc gia mặc định (nếu có)
+                if (nationsData.length > 0) {
+                    zoomToNation(nationsData[0].id);
+                }
 
                 render();
                 updateUI();
-                console.log('✅ Đã tải bản đồ!');
             } catch (error) {
                 console.error('❌ Lỗi tải map:', error);
+            }
+        }
+
+        // ==================== RENDER NATION LIST ====================
+        function renderNationList() {
+            const container = document.getElementById('nation-list');
+            if (!container) return;
+
+            if (nationsData.length === 0) {
+                container.innerHTML = `
+                            <div style="text-align:center;color:#888;font-size:12px;padding:10px;">
+                                ⏳ Đang tải dữ liệu...
+                            </div>
+                        `;
+                return;
+            }
+
+            let html = '';
+            nationsData.forEach(nation => {
+                const cityCount = nation.cities ? nation.cities.length : 0;
+                const isSelected = selectedNationId === nation.id;
+                html += `
+                            <div class="nation-option ${isSelected ? 'selected' : ''}" 
+                                 onclick="selectNation(${nation.id})"
+                                 data-nation-id="${nation.id}">
+                                <span class="color-dot" style="background:${nation.color};"></span>
+                                <span class="nation-name">${nation.name}</span>
+                                <span class="nation-cities">🏙️${cityCount}</span>
+                            </div>
+                        `;
+            });
+
+            container.innerHTML = html;
+
+            // Nếu chưa chọn, chọn cái đầu tiên
+            if (!selectedNationId && nationsData.length > 0) {
+                selectNation(nationsData[0].id);
+            }
+        }
+
+        // ==================== SELECT NATION ====================
+        function selectNation(nationId) {
+            const nation = nationsData.find(n => n.id === nationId);
+            if (!nation) return;
+
+            selectedNationId = nationId;
+            selectedNationName = nation.name;
+            playerColor = nation.color;
+
+            // Cập nhật UI
+            document.querySelectorAll('.nation-option').forEach(el => {
+                el.classList.toggle('selected', parseInt(el.dataset.nationId) === nationId);
+            });
+
+            // Zoom vào quốc gia
+            zoomToNation(nationId);
+
+            console.log(`✅ Đã chọn quốc gia: ${nation.name}`);
+        }
+
+        // ==================== ZOOM TO NATION ====================
+        function zoomToNation(nationId) {
+            // Tìm tất cả thành phố thuộc quốc gia này
+            const cities = gameState.cities.filter(c => c.owner === nationId);
+            if (cities.length === 0) {
+                // Nếu không có thành phố, zoom vào giữa bản đồ
+                camera.targetX = 0;
+                camera.targetY = 0;
+                camera.targetZoom = 1;
+                camera.isAnimating = true;
+                return;
+            }
+
+            // Tính trung tâm của các thành phố
+            let sumX = 0,
+                sumY = 0;
+            cities.forEach(c => { sumX += c.x;
+                sumY += c.y; });
+            const centerX = sumX / cities.length;
+            const centerY = sumY / cities.length;
+
+            // Tính khoảng cách để zoom
+            let maxDist = 0;
+            cities.forEach(c => {
+                const dist = Math.sqrt(Math.pow(c.x - centerX, 2) + Math.pow(c.y - centerY, 2));
+                if (dist > maxDist) maxDist = dist;
+            });
+
+            // Zoom phù hợp
+            const canvasSize = Math.min(canvas.width, canvas.height);
+            const zoom = Math.min(2, canvasSize / (maxDist * 3 + 200));
+
+            camera.targetX = canvas.width / 2 - centerX * zoom;
+            camera.targetY = canvas.height / 2 - centerY * zoom;
+            camera.targetZoom = Math.max(0.5, Math.min(2, zoom));
+            camera.isAnimating = true;
+
+            console.log(`🔍 Zoom vào ${cities[0].ownerName || 'quốc gia'}: zoom=${camera.targetZoom.toFixed(2)}`);
+        }
+
+        // ==================== UPDATE CAMERA ANIMATION ====================
+        function updateCamera() {
+            if (!camera.isAnimating) return;
+
+            const speed = 0.08;
+            camera.x += (camera.targetX - camera.x) * speed;
+            camera.y += (camera.targetY - camera.y) * speed;
+            camera.zoom += (camera.targetZoom - camera.zoom) * speed;
+
+            if (Math.abs(camera.x - camera.targetX) < 1 &&
+                Math.abs(camera.y - camera.targetY) < 1 &&
+                Math.abs(camera.zoom - camera.targetZoom) < 0.01) {
+                camera.x = camera.targetX;
+                camera.y = camera.targetY;
+                camera.zoom = camera.targetZoom;
+                camera.isAnimating = false;
             }
         }
 
@@ -595,7 +847,6 @@
             const loginBtn = document.getElementById('login-btn');
             const modeSelect = document.getElementById('game-mode');
             const roomIdGroup = document.getElementById('room-id-group');
-            const roomInput = document.getElementById('room-id');
 
             modeSelect.addEventListener('change', function() {
                 roomIdGroup.style.display = this.value === 'join' ? 'block' : 'none';
@@ -603,7 +854,17 @@
 
             loginBtn.addEventListener('click', async function() {
                 playerName = document.getElementById('player-name').value.trim() || 'Chiến Binh';
-                playerColor = document.getElementById('player-color').value;
+
+                if (!selectedNationId) {
+                    alert('❌ Vui lòng chọn quốc gia!');
+                    return;
+                }
+
+                const nation = nationsData.find(n => n.id === selectedNationId);
+                if (nation) {
+                    playerColor = nation.color;
+                }
+
                 const mode = document.getElementById('game-mode').value;
 
                 if (mode === 'join') {
@@ -728,6 +989,8 @@
                 id: playerId,
                 name: playerName,
                 color: playerColor,
+                nationId: selectedNationId,
+                nationName: selectedNationName,
                 gold: 300,
                 wood: 150,
                 stone: 100,
@@ -742,15 +1005,30 @@
                 isHost: isHost,
             };
 
-            const unownedCity = gameState.cities.find(c => c.owner === null);
-            if (unownedCity) {
-                unownedCity.owner = playerId;
-                unownedCity.army = 15;
-                unownedCity.gold = 100;
-                unownedCity.wood = 50;
-                unownedCity.stone = 30;
-                playerData.cities.push(unownedCity.id);
-                await updateCity(unownedCity);
+            // Tìm thành phố của quốc gia đã chọn
+            const nationCities = gameState.cities.filter(c => c.owner === selectedNationId);
+            if (nationCities.length > 0) {
+                nationCities.forEach(city => {
+                    city.owner = playerId;
+                    city.army = 15;
+                    city.gold = 100;
+                    city.wood = 50;
+                    city.stone = 30;
+                    playerData.cities.push(city.id);
+                    updateCity(city);
+                });
+            } else {
+                // Nếu không có thành phố, tìm thành phố trống
+                const unownedCity = gameState.cities.find(c => c.owner === null || c.owner === selectedNationId);
+                if (unownedCity) {
+                    unownedCity.owner = playerId;
+                    unownedCity.army = 15;
+                    unownedCity.gold = 100;
+                    unownedCity.wood = 50;
+                    unownedCity.stone = 30;
+                    playerData.cities.push(unownedCity.id);
+                    updateCity(unownedCity);
+                }
             }
 
             await gameRef.child('players').child(playerId).set(playerData);
@@ -768,6 +1046,7 @@
             document.getElementById('connection-status').style.color = '#4ade80';
 
             console.log(`✅ Đã đăng nhập: ${playerName} (${playerId})`);
+            console.log(`🏳️ Quốc gia: ${selectedNationName}`);
         }
 
         // ==================== LẮNG NGHE FIREBASE ====================
@@ -1397,17 +1676,35 @@
 
         // ==================== VẼ ====================
         function render() {
+            // Cập nhật camera animation
+            updateCamera();
+
+            ctx.save();
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = '#0a0a1a';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Áp dụng zoom và pan
+            ctx.translate(camera.x, camera.y);
+            ctx.scale(camera.zoom, camera.zoom);
 
             const img = new Image();
             img.src = 'map.svg';
             img.onload = function() {
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 drawGameElements();
+                ctx.restore();
             };
-            img.onerror = function() { drawGameElements(); };
+            img.onerror = function() {
+                drawGameElements();
+                ctx.restore();
+            };
+
+            // Nếu image chưa load, vẫn vẽ elements
+            if (!img.complete) {
+                drawGameElements();
+                ctx.restore();
+            }
         }
 
         function drawGameElements() {
@@ -1440,10 +1737,16 @@
 
             // Cities
             gameState.cities.forEach(city => {
-                const owner = city.owner ? gameState.players[city.owner] : null;
-                const color = owner ? owner.color : '#666';
                 const isMine = city.owner === playerId;
                 const isSelected = selectedCity && selectedCity.id === city.id;
+
+                // Màu sắc: ưu tiên màu của người chơi, sau đó màu quốc gia
+                let color = '#666';
+                if (city.owner && gameState.players[city.owner]) {
+                    color = gameState.players[city.owner].color;
+                } else if (city.ownerColor) {
+                    color = city.ownerColor;
+                }
 
                 const radius = isMine ? 20 : 14;
 
@@ -1510,10 +1813,13 @@
                 ctx.fillStyle = moraleColor;
                 ctx.fillRect(moraleX, moraleY, moraleWidth * (city.morale / 100), 4);
 
-                if (owner) {
+                // Tên quốc gia
+                const ownerName = city.owner && gameState.players[city.owner] ? gameState.players[city.owner].name :
+                    city.ownerName;
+                if (ownerName) {
                     ctx.fillStyle = '#aaa';
                     ctx.font = '8px Arial';
-                    ctx.fillText(owner.name, city.x, city.y + radius + 62);
+                    ctx.fillText(ownerName, city.x, city.y + radius + 62);
                 }
 
                 if (isSelected && isSelectingUnit) {
@@ -1527,7 +1833,8 @@
                 }
             });
 
-            // UI overlay
+            // UI overlay (vẽ sau cùng để không bị zoom)
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.fillStyle = 'rgba(0,0,0,0.8)';
             ctx.fillRect(10, 10, 280, 105);
             ctx.fillStyle = '#fff';
@@ -1536,7 +1843,7 @@
             const myCities = gameState.cities.filter(c => c.owner === playerId);
             const player = gameState.players[playerId];
             ctx.fillText(`⏱️ ${Math.floor(gameState.gameTime)}s  |  👥 ${Object.keys(gameState.players).length} người`,
-            20, 30);
+                20, 30);
             ctx.fillText(`🏙️ ${myCities.length} thành phố  |  ⚔️ ${Math.floor(myCities.reduce((sum, c) => sum + c.army, 0))} quân`,
                 20, 50);
             ctx.fillText(
@@ -1563,7 +1870,7 @@
             if (!playerId || !gameState.players[playerId]) return;
             const player = gameState.players[playerId];
 
-            document.getElementById('player-name-display').textContent = `👑 ${player.name}`;
+            document.getElementById('player-name-display').textContent = `👑 ${player.name} (${player.nationName || ''})`;
             document.getElementById('gold-display').textContent = Math.floor(player.gold || 0);
             document.getElementById('wood-display').textContent = Math.floor(player.wood || 0);
             document.getElementById('stone-display').textContent = Math.floor(player.stone || 0);
@@ -1592,7 +1899,7 @@
             if (!list) return;
 
             list.innerHTML =
-                '<div style="color:#888;font-size:11px;text-align:center;margin-bottom:4px;">👥 Người chơi</div>';
+                '<div style="color:#888;font-size:10px;text-align:center;margin-bottom:3px;">👥 Người chơi</div>';
 
             const sorted = Object.values(gameState.players).sort((a, b) => (b.score || 0) - (a.score || 0));
             sorted.forEach(player => {
@@ -1608,7 +1915,7 @@
                             ${isConnected ? '🟢' : '🟡'} 
                             <strong>${player.name}</strong> ${isMe ? '⭐' : ''}
                             ${player.isHost ? '👑' : ''}
-                            <span style="font-size:10px;color:#888;">
+                            <span style="font-size:9px;color:#888;">
                                 🏙️${cityCount} 💰${Math.floor(player.gold || 0)}
                                 ${player.score ? `⭐${player.score}` : ''}
                             </span>
@@ -1619,85 +1926,42 @@
 
         // ==================== SỰ KIỆN CHUỘT ====================
         function setupEvents() {
-            canvas.addEventListener('click', function(e) {
-                const rect = canvas.getBoundingClientRect();
-                const scaleX = canvas.width / rect.width;
-                const scaleY = canvas.height / rect.height;
-                const x = (e.clientX - rect.left) * scaleX;
-                const y = (e.clientY - rect.top) * scaleY;
+            canvas.addEventListener('mousedown', function(e) {
+                isDragging = true;
+                dragStartX = e.clientX;
+                dragStartY = e.clientY;
+                dragStartCamX = camera.x;
+                dragStartCamY = camera.y;
+                canvas.style.cursor = 'grabbing';
+            });
 
-                let clickedCity = null;
-                for (let city of gameState.cities) {
-                    const dx = x - city.x;
-                    const dy = y - city.y;
-                    if (Math.sqrt(dx * dx + dy * dy) < 30) {
-                        clickedCity = city;
-                        break;
-                    }
-                }
-
-                if (isSelectingUnit) {
-                    if (clickedCity) {
-                        if (clickedCity.owner === playerId) {
-                            if (clickedCity.id !== selectedCity?.id) {
-                                const units = prompt(
-                                    `⚔️ Nhập số quân từ ${selectedCity?.name} đến ${clickedCity.name}:`,
-                                    Math.floor(selectedCity?.army / 2 || 5)
-                                );
-                                if (units && !isNaN(units) && parseInt(units) > 0) {
-                                    const fromCity = selectedCity;
-                                    const toCity = clickedCity;
-                                    if (fromCity && fromCity.army >= parseInt(units)) {
-                                        fromCity.army -= parseInt(units);
-                                        toCity.army += parseInt(units);
-                                        updateCity(fromCity);
-                                        updateCity(toCity);
-                                        alert(
-                                            `✅ Đã chuyển ${units} quân từ ${fromCity.name} đến ${toCity.name}`
-                                            );
-                                    } else {
-                                        alert('❌ Không đủ quân!');
-                                    }
-                                }
-                            }
-                        } else {
-                            const units = prompt(
-                                `⚔️ Nhập số quân tấn công ${clickedCity.name}:`,
-                                Math.floor(selectedCity?.army / 2 || 5)
-                            );
-                            if (units && !isNaN(units) && parseInt(units) > 0) {
-                                invadeCity(selectedCity.id, clickedCity.id, parseInt(units));
-                            }
-                        }
-                        isSelectingUnit = false;
-                        selectedCity = null;
-                        render();
-                        return;
-                    } else {
-                        isSelectingUnit = false;
-                        selectedCity = null;
-                        document.getElementById('info-content').innerHTML = `
-                                    <p style="color:#888;">Đã hủy chọn quân</p>
-                                `;
-                        render();
-                        return;
-                    }
-                }
-
-                if (!clickedCity) {
-                    selectedCity = null;
-                    document.getElementById('info-content').innerHTML = `
-                                <p style="color:#888;font-size:12px;">Click vào thành phố để quản lý</p>
-                                <p style="color:#555;font-size:10px;margin-top:5px;">📌 Click phải để xây dựng</p>
-                                <p style="color:#555;font-size:10px;">🎯 Click thành phố của bạn → "Điều quân"</p>
-                            `;
+            canvas.addEventListener('mousemove', function(e) {
+                if (isDragging) {
+                    const dx = e.clientX - dragStartX;
+                    const dy = e.clientY - dragStartY;
+                    camera.x = dragStartCamX + dx;
+                    camera.y = dragStartCamY + dy;
+                    camera.isAnimating = false;
                     render();
-                    return;
                 }
+            });
 
-                selectedCity = clickedCity;
-                showCityMenu(clickedCity);
-                render();
+            canvas.addEventListener('mouseup', function(e) {
+                if (isDragging) {
+                    isDragging = false;
+                    canvas.style.cursor = 'default';
+                    // Nếu kéo ít hơn 5px thì coi như click
+                    const dx = e.clientX - dragStartX;
+                    const dy = e.clientY - dragStartY;
+                    if (Math.sqrt(dx * dx + dy * dy) < 5) {
+                        handleClick(e);
+                    }
+                }
+            });
+
+            canvas.addEventListener('mouseleave', function() {
+                isDragging = false;
+                canvas.style.cursor = 'default';
             });
 
             canvas.addEventListener('contextmenu', function(e) {
@@ -1712,6 +1976,101 @@
                 }
                 showBuildMenu(selectedCity);
             });
+
+            // Wheel zoom
+            canvas.addEventListener('wheel', function(e) {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? -0.1 : 0.1;
+                const newZoom = Math.max(0.3, Math.min(3, camera.zoom + delta));
+                camera.targetZoom = newZoom;
+                camera.isAnimating = true;
+                render();
+            });
+        }
+
+        function handleClick(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+
+            // Chuyển đổi tọa độ click sang không gian bản đồ (có zoom)
+            const mapX = (x - camera.x) / camera.zoom;
+            const mapY = (y - camera.y) / camera.zoom;
+
+            let clickedCity = null;
+            for (let city of gameState.cities) {
+                const dx = mapX - city.x;
+                const dy = mapY - city.y;
+                if (Math.sqrt(dx * dx + dy * dy) < 30) {
+                    clickedCity = city;
+                    break;
+                }
+            }
+
+            if (isSelectingUnit) {
+                if (clickedCity) {
+                    if (clickedCity.owner === playerId) {
+                        if (clickedCity.id !== selectedCity?.id) {
+                            const units = prompt(
+                                `⚔️ Nhập số quân từ ${selectedCity?.name} đến ${clickedCity.name}:`,
+                                Math.floor(selectedCity?.army / 2 || 5)
+                            );
+                            if (units && !isNaN(units) && parseInt(units) > 0) {
+                                const fromCity = selectedCity;
+                                const toCity = clickedCity;
+                                if (fromCity && fromCity.army >= parseInt(units)) {
+                                    fromCity.army -= parseInt(units);
+                                    toCity.army += parseInt(units);
+                                    updateCity(fromCity);
+                                    updateCity(toCity);
+                                    alert(
+                                        `✅ Đã chuyển ${units} quân từ ${fromCity.name} đến ${toCity.name}`
+                                    );
+                                } else {
+                                    alert('❌ Không đủ quân!');
+                                }
+                            }
+                        }
+                    } else {
+                        const units = prompt(
+                            `⚔️ Nhập số quân tấn công ${clickedCity.name}:`,
+                            Math.floor(selectedCity?.army / 2 || 5)
+                        );
+                        if (units && !isNaN(units) && parseInt(units) > 0) {
+                            invadeCity(selectedCity.id, clickedCity.id, parseInt(units));
+                        }
+                    }
+                    isSelectingUnit = false;
+                    selectedCity = null;
+                    render();
+                    return;
+                } else {
+                    isSelectingUnit = false;
+                    selectedCity = null;
+                    document.getElementById('info-content').innerHTML = `
+                                <p style="color:#888;">Đã hủy chọn quân</p>
+                            `;
+                    render();
+                    return;
+                }
+            }
+
+            if (!clickedCity) {
+                selectedCity = null;
+                document.getElementById('info-content').innerHTML = `
+                            <p style="color:#888;font-size:11px;">Click vào thành phố để quản lý</p>
+                            <p style="color:#555;font-size:9px;margin-top:3px;">📌 Click phải để xây dựng</p>
+                            <p style="color:#555;font-size:9px;">🎯 Click thành phố của bạn → "Điều quân"</p>
+                        `;
+                render();
+                return;
+            }
+
+            selectedCity = clickedCity;
+            showCityMenu(clickedCity);
+            render();
         }
 
         // ==================== MENU ====================
@@ -1721,32 +2080,32 @@
             const player = gameState.players[playerId];
 
             let html = `
-                        <h4 style="color:#ffd700;font-size:14px;margin-bottom:6px;">🏙️ ${city.name}</h4>
-                        <p style="font-size:12px;"><strong>Quốc gia:</strong> ${owner ? owner.name : '🌿 Trống'}</p>
-                        <p style="font-size:12px;"><strong>Quân đội:</strong> ⚔️ ${Math.floor(city.army)}</p>
-                        <p style="font-size:12px;"><strong>Vàng:</strong> 💰 ${Math.floor(city.gold || 0)}</p>
-                        <p style="font-size:12px;"><strong>Gỗ:</strong> 🪵 ${Math.floor(city.wood || 0)}</p>
-                        <p style="font-size:12px;"><strong>Đá:</strong> 🪨 ${Math.floor(city.stone || 0)}</p>
-                        <p style="font-size:12px;"><strong>Phòng thủ:</strong> 🛡️ ${Math.floor(city.defense || 10)}</p>
-                        <p style="font-size:12px;"><strong>Tinh thần:</strong> ${city.morale > 60 ? '😊' : city.morale > 30 ? '😐' : '😰'} ${Math.floor(city.morale)}%</p>
-                        ${city.isCapital ? '<p style="color:#ffd700;font-size:12px;">⭐ Thủ đô</p>' : ''}
+                        <h4 style="color:#ffd700;font-size:13px;margin-bottom:4px;">🏙️ ${city.name}</h4>
+                        <p style="font-size:11px;"><strong>Quốc gia:</strong> ${owner ? owner.name : (city.ownerName || '🌿 Trống')}</p>
+                        <p style="font-size:11px;"><strong>Quân đội:</strong> ⚔️ ${Math.floor(city.army)}</p>
+                        <p style="font-size:11px;"><strong>Vàng:</strong> 💰 ${Math.floor(city.gold || 0)}</p>
+                        <p style="font-size:11px;"><strong>Gỗ:</strong> 🪵 ${Math.floor(city.wood || 0)}</p>
+                        <p style="font-size:11px;"><strong>Đá:</strong> 🪨 ${Math.floor(city.stone || 0)}</p>
+                        <p style="font-size:11px;"><strong>Phòng thủ:</strong> 🛡️ ${Math.floor(city.defense || 10)}</p>
+                        <p style="font-size:11px;"><strong>Tinh thần:</strong> ${city.morale > 60 ? '😊' : city.morale > 30 ? '😐' : '😰'} ${Math.floor(city.morale)}%</p>
+                        ${city.isCapital ? '<p style="color:#ffd700;font-size:11px;">⭐ Thủ đô</p>' : ''}
                     `;
 
             if (city.buildings && city.buildings.length > 0) {
                 html +=
-                    '<hr style="border-color:#333;"><p style="color:#4ade80;font-size:12px;">🏗️ Công trình:</p><div style="display:flex;flex-wrap:wrap;gap:3px;max-height:80px;overflow-y:auto;">';
+                    '<hr style="border-color:#333;"><p style="color:#4ade80;font-size:11px;">🏗️ Công trình:</p><div style="display:flex;flex-wrap:wrap;gap:2px;max-height:70px;overflow-y:auto;">';
                 city.buildings.forEach((b, index) => {
                     const bData = BUILDINGS[b.type];
                     if (bData) {
                         const isMaxLevel = b.level >= bData.maxLevel;
                         html += `
-                                    <div style="font-size:10px;background:#1a1a2e;padding:2px 6px;border-radius:4px;border:1px solid ${isMaxLevel ? '#ffd700' : '#4ade80'};display:inline-block;margin:2px;">
+                                    <div style="font-size:9px;background:#1a1a2e;padding:2px 5px;border-radius:3px;border:1px solid ${isMaxLevel ? '#ffd700' : '#4ade80'};display:inline-block;margin:1px;">
                                         ${bData.icon} ${bData.name} 
                                         <span style="color:#888;">Lv.${b.level}</span>
                                         ${isMine && !isMaxLevel ? `
                                             <button onclick="upgradeBuilding(${city.id}, ${index})" style="
                                                 background:#fbbf24;color:#1a1a2e;border:none;border-radius:2px;
-                                                cursor:pointer;font-size:8px;padding:1px 4px;margin-left:3px;
+                                                cursor:pointer;font-size:7px;padding:1px 3px;margin-left:2px;
                                             ">↑</button>
                                         ` : ''}
                                     </div>
@@ -1759,34 +2118,34 @@
             if (isMine) {
                 html += `
                             <hr style="border-color:#333;">
-                            <div style="display:flex;flex-direction:column;gap:4px;margin-top:6px;">
+                            <div style="display:flex;flex-direction:column;gap:3px;margin-top:4px;">
                                 <button onclick="selectUnit(selectedCity)" style="
-                                    background:#4ade80;color:#1a1a2e;border:none;padding:6px;border-radius:4px;
-                                    cursor:pointer;font-weight:bold;font-size:12px;
+                                    background:#4ade80;color:#1a1a2e;border:none;padding:5px;border-radius:4px;
+                                    cursor:pointer;font-weight:bold;font-size:11px;
                                 ">
                                     🎯 Điều quân (Click vào đất)
                                 </button>
                                 <button onclick="showBuildMenu(selectedCity)" style="
-                                    background:#60a5fa;color:#fff;border:none;padding:6px;border-radius:4px;
-                                    cursor:pointer;font-size:12px;
+                                    background:#60a5fa;color:#fff;border:none;padding:5px;border-radius:4px;
+                                    cursor:pointer;font-size:11px;
                                 ">
                                     🏗️ Xây dựng (Click phải)
                                 </button>
                                 <button onclick="recruitArmy(${city.id})" style="
-                                    background:#fbbf24;color:#1a1a2e;border:none;padding:6px;border-radius:4px;
-                                    cursor:pointer;font-size:12px;
+                                    background:#fbbf24;color:#1a1a2e;border:none;padding:5px;border-radius:4px;
+                                    cursor:pointer;font-size:11px;
                                 ">
                                     ⚔️ Tuyển quân (~20 vàng)
                                 </button>
                                 <button onclick="showPolicyMenu()" style="
-                                    background:#a78bfa;color:#fff;border:none;padding:6px;border-radius:4px;
-                                    cursor:pointer;font-size:12px;
+                                    background:#a78bfa;color:#fff;border:none;padding:5px;border-radius:4px;
+                                    cursor:pointer;font-size:11px;
                                 ">
                                     📜 Chính trị
                                 </button>
                                 <button onclick="showTechMenu()" style="
-                                    background:#f472b6;color:#fff;border:none;padding:6px;border-radius:4px;
-                                    cursor:pointer;font-size:12px;
+                                    background:#f472b6;color:#fff;border:none;padding:5px;border-radius:4px;
+                                    cursor:pointer;font-size:11px;
                                 ">
                                     🔬 Công nghệ
                                 </button>
@@ -1797,8 +2156,8 @@
                     html += `
                                 <hr style="border-color:#333;">
                                 <button onclick="prepareInvasion()" style="
-                                    background:#e94560;color:#fff;border:none;padding:8px;border-radius:4px;
-                                    cursor:pointer;width:100%;font-weight:bold;font-size:12px;
+                                    background:#e94560;color:#fff;border:none;padding:6px;border-radius:4px;
+                                    cursor:pointer;width:100%;font-weight:bold;font-size:11px;
                                 ">
                                     ⚔️ Xâm chiếm
                                 </button>
@@ -1820,14 +2179,14 @@
             };
 
             let html = `
-                        <h4 style="color:#4ade80;font-size:14px;">🏗️ Xây dựng tại ${city.name}</h4>
-                        <p style="font-size:11px;">💰 Vàng: ${Math.floor(player.gold)} | 🪵 Gỗ: ${Math.floor(player.wood)} | 🪨 Đá: ${Math.floor(player.stone)}</p>
+                        <h4 style="color:#4ade80;font-size:13px;">🏗️ Xây dựng tại ${city.name}</h4>
+                        <p style="font-size:10px;">💰 Vàng: ${Math.floor(player.gold)} | 🪵 Gỗ: ${Math.floor(player.wood)} | 🪨 Đá: ${Math.floor(player.stone)}</p>
                         <hr style="border-color:#333;">
                     `;
 
             Object.keys(categories).forEach(cat => {
                 html +=
-                    `<p style="color:#888;font-size:11px;margin-top:6px;">${categories[cat]}</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">`;
+                    `<p style="color:#888;font-size:10px;margin-top:4px;">${categories[cat]}</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;">`;
                 Object.keys(BUILDINGS).forEach(key => {
                     const b = BUILDINGS[key];
                     if (b.category !== cat) return;
@@ -1852,8 +2211,8 @@
                                     background:${canAfford ? '#2d2d4e' : '#1a1a2e'};
                                     color:${canAfford ? '#fff' : '#555'};
                                     border:1px solid ${canAfford ? '#4ade80' : '#333'};
-                                    padding:6px;border-radius:4px;cursor:${canAfford ? 'pointer' : 'not-allowed'};
-                                    font-size:9px;
+                                    padding:5px;border-radius:4px;cursor:${canAfford ? 'pointer' : 'not-allowed'};
+                                    font-size:8px;
                                 ">
                                     ${b.icon} ${b.name}
                                     <br><span style="font-size:7px;">💰${goldCost} 🪵${woodCost} 🪨${stoneCost}</span>
@@ -1870,11 +2229,11 @@
             const player = gameState.players[playerId];
             if (!player) return;
             let html = `
-                        <h4 style="color:#a78bfa;font-size:14px;">📜 Chính sách</h4>
-                        <p style="font-size:12px;">💰 Vàng: ${Math.floor(player.gold)}</p>
-                        <p style="font-size:12px;">Hiện tại: ${player.policy ? POLICIES[player.policy].name : 'Chưa có'}</p>
+                        <h4 style="color:#a78bfa;font-size:13px;">📜 Chính sách</h4>
+                        <p style="font-size:11px;">💰 Vàng: ${Math.floor(player.gold)}</p>
+                        <p style="font-size:11px;">Hiện tại: ${player.policy ? POLICIES[player.policy].name : 'Chưa có'}</p>
                         <hr style="border-color:#333;">
-                        <div style="display:flex;flex-direction:column;gap:4px;max-height:250px;overflow-y:auto;">
+                        <div style="display:flex;flex-direction:column;gap:3px;max-height:200px;overflow-y:auto;">
                     `;
             Object.keys(POLICIES).forEach(key => {
                 const p = POLICIES[key];
@@ -1885,11 +2244,11 @@
                                 background:${isActive ? '#4ade80' : (canAfford ? '#2d2d4e' : '#1a1a2e')};
                                 color:${isActive ? '#1a1a2e' : (canAfford ? '#fff' : '#555')};
                                 border:2px solid ${isActive ? '#4ade80' : (canAfford ? '#a78bfa' : '#333')};
-                                padding:6px;border-radius:4px;cursor:${canAfford ? 'pointer' : 'not-allowed'};
-                                text-align:left;font-size:11px;
+                                padding:5px;border-radius:4px;cursor:${canAfford ? 'pointer' : 'not-allowed'};
+                                text-align:left;font-size:10px;
                             ">
                                 ${p.icon} ${p.name} ${isActive ? '✅' : ''}
-                                <br><span style="font-size:9px;color:#888;">${p.effect}</span>
+                                <br><span style="font-size:8px;color:#888;">${p.effect}</span>
                                 <br><span style="font-size:8px;">💰${p.cost}</span>
                             </button>
                         `;
@@ -1902,10 +2261,10 @@
             const player = gameState.players[playerId];
             if (!player) return;
             let html = `
-                        <h4 style="color:#fbbf24;font-size:14px;">🔬 Công nghệ</h4>
-                        <p style="font-size:12px;">💰 Vàng: ${Math.floor(player.gold)}</p>
+                        <h4 style="color:#fbbf24;font-size:13px;">🔬 Công nghệ</h4>
+                        <p style="font-size:11px;">💰 Vàng: ${Math.floor(player.gold)}</p>
                         <hr style="border-color:#333;">
-                        <div style="display:flex;flex-direction:column;gap:4px;max-height:250px;overflow-y:auto;">
+                        <div style="display:flex;flex-direction:column;gap:3px;max-height:200px;overflow-y:auto;">
                     `;
             Object.keys(TECHNOLOGIES).forEach(key => {
                 const t = TECHNOLOGIES[key];
@@ -1917,11 +2276,11 @@
                                 background:${canAfford && !isMax ? '#2d2d4e' : '#1a1a2e'};
                                 color:${canAfford && !isMax ? '#fff' : '#555'};
                                 border:1px solid ${canAfford && !isMax ? '#fbbf24' : '#333'};
-                                padding:6px;border-radius:4px;cursor:${canAfford && !isMax ? 'pointer' : 'not-allowed'};
-                                text-align:left;font-size:11px;
+                                padding:5px;border-radius:4px;cursor:${canAfford && !isMax ? 'pointer' : 'not-allowed'};
+                                text-align:left;font-size:10px;
                             ">
                                 ${t.icon} ${t.name} - Cấp ${t.level}/${t.maxLevel}
-                                <br><span style="font-size:9px;color:#888;">${t.effect}</span>
+                                <br><span style="font-size:8px;color:#888;">${t.effect}</span>
                                 <br><span style="font-size:8px;">💰${cost}</span>
                                 ${isMax ? ' ✅ MAX' : ''}
                             </button>
@@ -1944,15 +2303,15 @@
             }
 
             let html = `
-                        <h4 style="color:#e94560;font-size:14px;">⚔️ Xâm chiếm ${city.name}</h4>
-                        <p style="font-size:12px;">Chọn thành phố gửi quân:</p>
-                        <div style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto;">
+                        <h4 style="color:#e94560;font-size:13px;">⚔️ Xâm chiếm ${city.name}</h4>
+                        <p style="font-size:11px;">Chọn thành phố gửi quân:</p>
+                        <div style="display:flex;flex-direction:column;gap:3px;max-height:150px;overflow-y:auto;">
                     `;
             myCities.forEach(c => {
                 html += `
                             <button onclick="showInvasionAmount(${c.id}, ${city.id})" style="
                                 background:#2d2d4e;color:#fff;border:1px solid #e94560;
-                                padding:6px;border-radius:4px;cursor:pointer;text-align:left;font-size:11px;
+                                padding:5px;border-radius:4px;cursor:pointer;text-align:left;font-size:10px;
                             ">
                                 🏙️ ${c.name} - ⚔️${Math.floor(c.army)} 💰${Math.floor(c.gold || 0)}
                             </button>
@@ -1966,17 +2325,17 @@
             const fromCity = gameState.cities.find(c => c.id === fromCityId);
             if (!fromCity) return;
             let html = `
-                        <h4 style="color:#e94560;font-size:14px;">⚔️ Xâm chiếm</h4>
-                        <p style="font-size:12px;">Từ: ${fromCity.name} (⚔️${Math.floor(fromCity.army)})</p>
-                        <p style="font-size:12px;">Đến: ${gameState.cities.find(c => c.id === toCityId)?.name}</p>
+                        <h4 style="color:#e94560;font-size:13px;">⚔️ Xâm chiếm</h4>
+                        <p style="font-size:11px;">Từ: ${fromCity.name} (⚔️${Math.floor(fromCity.army)})</p>
+                        <p style="font-size:11px;">Đến: ${gameState.cities.find(c => c.id === toCityId)?.name}</p>
                         <hr style="border-color:#333;">
-                        <p style="font-size:12px;">Nhập số quân tấn công:</p>
+                        <p style="font-size:11px;">Nhập số quân tấn công:</p>
                         <input id="invasion-units" type="number" value="${Math.floor(fromCity.army / 2)}" 
                                min="1" max="${Math.floor(fromCity.army)}" 
-                               style="width:100%;padding:6px;margin:6px 0;background:#1a1a2e;color:#fff;border:1px solid #e94560;border-radius:4px;font-size:12px;">
+                               style="width:100%;padding:5px;margin:4px 0;background:#1a1a2e;color:#fff;border:1px solid #e94560;border-radius:4px;font-size:11px;">
                         <button onclick="executeInvasion(${fromCityId}, ${toCityId})" style="
-                            background:#e94560;color:#fff;border:none;padding:8px;border-radius:4px;
-                            cursor:pointer;width:100%;font-weight:bold;font-size:12px;
+                            background:#e94560;color:#fff;border:none;padding:6px;border-radius:4px;
+                            cursor:pointer;width:100%;font-weight:bold;font-size:11px;
                         ">
                             ⚔️ Tấn công!
                         </button>
@@ -2007,10 +2366,10 @@
             selectedCity = city;
             isSelectingUnit = true;
             document.getElementById('info-content').innerHTML = `
-                        <h4 style="color:#4ade80;font-size:14px;">🎯 Đang chọn quân</h4>
-                        <p style="font-size:12px;">Từ: ${city.name} (⚔️${Math.floor(city.army)})</p>
-                        <p style="font-size:12px;color:#fbbf24;">Click vào một thành phố khác để di chuyển</p>
-                        <p style="font-size:11px;color:#888;">Click vào đất trống để bỏ chọn</p>
+                        <h4 style="color:#4ade80;font-size:13px;">🎯 Đang chọn quân</h4>
+                        <p style="font-size:11px;">Từ: ${city.name} (⚔️${Math.floor(city.army)})</p>
+                        <p style="font-size:11px;color:#fbbf24;">Click vào một thành phố khác để di chuyển</p>
+                        <p style="font-size:10px;color:#888;">Click vào đất trống để bỏ chọn</p>
                     `;
             render();
         }
@@ -2022,6 +2381,7 @@
         window.researchTech = researchTech;
         window.recruitArmy = recruitArmy;
         window.selectUnit = selectUnit;
+        window.selectNation = selectNation;
         window.showBuildMenu = showBuildMenu;
         window.showPolicyMenu = showPolicyMenu;
         window.showTechMenu = showTechMenu;
@@ -2036,6 +2396,14 @@
             setupLogin();
             setupEvents();
             loadMap();
+
+            // Click ra ngoài để bỏ chọn nation
+            document.addEventListener('click', function(e) {
+                const nationList = document.getElementById('nation-list');
+                if (nationList && !nationList.contains(e.target)) {
+                    // Không làm gì, giữ nguyên chọn
+                }
+            });
         };
     </script>
 
