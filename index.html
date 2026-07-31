@@ -3,264 +3,212 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SVG to TXT Converter & Live Preview</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <title>🎂 Birthday RTS</title>
     <style>
-        textarea::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #0a0a1a;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
         }
-        textarea::-webkit-scrollbar-track {
-            background: #020617;
+        #app {
+            display: flex;
+            height: 100vh;
         }
-        textarea::-webkit-scrollbar-thumb {
-            background: #334155;
+        #sidebar {
+            width: 220px;
+            background: #1a1a2e;
+            padding: 15px;
+            border-right: 2px solid #e94560;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+        }
+        #sidebar h2 {
+            color: #e94560;
+            font-size: 18px;
+            text-align: center;
+        }
+        #player-info {
+            background: #0f3460;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        #player-info .label { color: #888; }
+        #player-info .value { color: #ffd700; font-weight: bold; }
+        #player-list {
+            flex: 1;
+            overflow-y: auto;
+            background: #0f3460;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .player-item {
+            padding: 5px 8px;
+            border-left: 3px solid;
+            margin-bottom: 3px;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+        }
+        #chat-container {
+            background: #0f3460;
+            border-radius: 8px;
+            padding: 8px;
+            height: 150px;
+            display: flex;
+            flex-direction: column;
+        }
+        #chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            font-size: 12px;
+            padding: 5px;
+        }
+        .chat-message {
+            padding: 2px 0;
+            border-bottom: 1px solid #1a1a2e;
+        }
+        #chat-input-row {
+            display: flex;
+            gap: 5px;
+            margin-top: 5px;
+        }
+        #chat-input {
+            flex: 1;
+            padding: 5px 8px;
+            border-radius: 4px;
+            border: none;
+            background: #1a1a2e;
+            color: #fff;
+        }
+        #chat-input:focus { outline: 1px solid #e94560; }
+        #chat-send {
+            padding: 5px 12px;
+            background: #e94560;
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            cursor: pointer;
+        }
+        #map-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #0a0a1a;
+        }
+        #gameCanvas {
+            max-width: 100%;
+            max-height: 100vh;
+            cursor: pointer;
+            border: 2px solid #e94560;
             border-radius: 4px;
         }
+        #info-panel {
+            width: 220px;
+            background: #1a1a2e;
+            padding: 15px;
+            border-left: 2px solid #e94560;
+            overflow-y: auto;
+        }
+        #info-panel h3 {
+            color: #e94560;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        #info-content {
+            background: #0f3460;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.8;
+            min-height: 200px;
+        }
+        #connection-status {
+            text-align: center;
+            font-size: 12px;
+            padding: 4px;
+            background: #0a0a1a;
+            border-radius: 4px;
+        }
+        #player-name-input {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 5px;
+        }
+        #player-name {
+            flex: 1;
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: none;
+            background: #0a0a1a;
+            color: #fff;
+        }
+        #join-btn {
+            padding: 4px 12px;
+            background: #4ade80;
+            border: none;
+            border-radius: 4px;
+            color: #1a1a2e;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #1a1a2e; }
+        ::-webkit-scrollbar-thumb { background: #e94560; border-radius: 4px; }
     </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8 flex flex-col font-sans">
-
-    <!-- Header -->
-    <header class="max-w-4xl w-full mx-auto mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-800 pb-4 gap-4">
-        <div>
-            <div class="flex items-center gap-3">
-                <div class="p-2.5 bg-indigo-600/20 text-indigo-400 rounded-xl border border-indigo-500/30">
-                    <i data-lucide="file-code-2" class="w-7 h-7"></i>
-                </div>
-                <h1 class="text-xl md:text-2xl font-bold bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-                    SVG to TXT Converter & Preview
-                </h1>
-            </div>
-            <p class="text-slate-400 text-xs md:text-sm mt-1">
-                Xem trước ảnh SVG và lấy mã <span class="text-emerald-400 font-semibold">.TXT</span> siêu nhẹ không bị đơ điện thoại
-            </p>
-        </div>
-
-        <button id="clearBtn" class="hidden px-3.5 py-2 text-sm bg-slate-800 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 border border-slate-700 rounded-lg transition-all flex items-center gap-2">
-            <i data-lucide="trash-2" class="w-4 h-4"></i>
-            <span>Làm mới</span>
-        </button>
-    </header>
-
-    <main class="max-w-4xl w-full mx-auto flex-1 flex flex-col gap-6">
-        
-        <!-- Khung Upload / Chọn File SVG (Đã fix thuộc tính accept để mở Trình quản lý Tệp thay vì GG Photos) -->
-        <div id="dropZone" class="border-2 border-dashed border-slate-700 hover:border-indigo-500/60 bg-slate-800/40 hover:bg-slate-800/80 rounded-2xl p-8 text-center cursor-pointer transition-all flex flex-col items-center justify-center min-h-[220px]">
-            <input type="file" id="fileInput" accept=".svg,text/plain,text/xml,application/xml" class="hidden">
-            <div class="p-3 bg-slate-700/50 text-indigo-400 rounded-full mb-3 border border-slate-600">
-                <i data-lucide="file-text" class="w-8 h-8"></i>
-            </div>
-            <h3 class="text-base font-medium text-slate-200 mb-1">
-                Chạm vào đây để chọn file SVG từ Tệp (Files)
-            </h3>
-            <p class="text-slate-400 text-xs mb-4">
-                Tự động lọc và hiển thị chuẩn mã SVG Sinzakia hoặc bản đồ vector
-            </p>
-            <div class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded-lg transition-colors shadow-lg shadow-indigo-600/20">
-                <i data-lucide="folder-open" class="w-4 h-4"></i>
-                Mở quản lý tệp trên điện thoại
-            </div>
-        </div>
-
-        <!-- Notification Toast -->
-        <div id="toast" class="fixed bottom-5 right-5 bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-sm font-medium transition-all duration-300 opacity-0 pointer-events-none translate-y-3 z-50">
-            <i data-lucide="check-circle-2" class="w-5 h-5"></i>
-            <span id="toastMsg">Thao tác thành công!</span>
-        </div>
-
-        <!-- Kết quả Workspace: Live Preview + TXT Code -->
-        <div id="resultWorkspace" class="hidden flex flex-col gap-6 flex-1">
+<body>
+    <div id="app">
+        <!-- Sidebar -->
+        <div id="sidebar">
+            <h2>🎂 Birthday RTS</h2>
+            <div id="connection-status">🟡 Đang kết nối...</div>
             
-            <!-- 1. KHUNG PREVIEW (XEM TRƯỚC HÌNH ẢNH SVG) -->
-            <div class="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-4 flex flex-col gap-3 shadow-xl">
-                <div class="flex items-center justify-between border-b border-slate-700/60 pb-3">
-                    <span class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                        <i data-lucide="eye" class="w-4 h-4 text-indigo-400"></i>
-                        Xem trước hình ảnh (Preview Live)
-                    </span>
-                    <span id="statFileName" class="text-xs text-indigo-400 font-mono bg-indigo-950/60 px-2.5 py-1 rounded-md border border-indigo-800/50">filename.svg</span>
-                </div>
-                
-                <!-- Vùng render hiển thị hình ảnh SVG -->
-                <div id="svgPreview" class="w-full h-64 md:h-80 bg-slate-950 rounded-xl p-3 border border-slate-800/80 flex items-center justify-center overflow-hidden">
-                    <!-- Thẻ SVG thực tế sẽ được đưa vào đây -->
+            <div id="player-name-input">
+                <input id="player-name" placeholder="Tên của bạn" value="Chiến Binh">
+                <button id="join-btn" onclick="location.reload()">🔄</button>
+            </div>
+            
+            <div id="player-info">
+                <div id="player-name-display" style="color:#ffd700;font-weight:bold;">👑 Chưa đăng nhập</div>
+                <div><span class="label">💰 Vàng:</span> <span class="value" id="gold-display">0</span></div>
+                <div><span class="label">🏙️ Thành phố:</span> <span class="value" id="city-count">0</span></div>
+                <div><span class="label">⚔️ Quân đội:</span> <span class="value" id="army-display">0</span></div>
+            </div>
+            
+            <div id="player-list">
+                <div style="color:#888;font-size:12px;text-align:center;">👥 Danh sách người chơi</div>
+            </div>
+            
+            <div id="chat-container">
+                <div id="chat-messages"></div>
+                <div id="chat-input-row">
+                    <input id="chat-input" placeholder="Chat...">
+                    <button id="chat-send" onclick="sendChatMessage()">Gửi</button>
                 </div>
             </div>
-
-            <!-- 2. KHUNG MÃ TXT & NÚT THAO TÁC -->
-            <div class="bg-slate-800/60 border border-slate-700/80 rounded-2xl flex flex-col overflow-hidden shadow-xl">
-                <!-- Toolbar -->
-                <div class="bg-slate-800 px-4 py-3 border-b border-slate-700 flex flex-wrap items-center justify-between gap-3">
-                    <span class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                        <i data-lucide="code-2" class="w-4 h-4 text-emerald-400"></i>
-                        Mã .TXT nén phẳng (1 dòng)
-                    </span>
-
-                    <div class="flex items-center gap-2">
-                        <button id="downloadTxtBtn" class="px-3.5 py-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors flex items-center gap-1.5 shadow-md shadow-emerald-600/20">
-                            <i data-lucide="download" class="w-3.5 h-3.5"></i>
-                            Tải file .TXT
-                        </button>
-                        
-                        <button id="copyBtn" class="px-4 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-all flex items-center gap-2 shadow-md shadow-indigo-600/20 active:scale-95">
-                            <i data-lucide="copy" class="w-4 h-4"></i>
-                            <span id="copyText">Sao chép TXT</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Textarea chứa mã -->
-                <div class="relative flex-1">
-                    <textarea id="txtOutput" readonly class="w-full h-48 md:h-56 p-4 bg-slate-950 font-mono text-xs text-slate-300 resize-y focus:outline-none leading-relaxed selection:bg-indigo-600 selection:text-white" spellcheck="false"></textarea>
-                </div>
-
-                <!-- Footer Status -->
-                <div class="bg-slate-900 px-4 py-2 text-xs text-slate-500 border-t border-slate-800 flex justify-between items-center">
-                    <span id="sizeStatus">Dung lượng: 0 Bytes</span>
-                    <span id="charCount">0 Ký tự</span>
-                </div>
-            </div>
-
         </div>
-    </main>
-
-    <script>
-        let state = {
-            fileName: '',
-            minifiedSvgCode: ''
-        };
-
-        const dropZone = document.getElementById('dropZone');
-        const fileInput = document.getElementById('fileInput');
-        const resultWorkspace = document.getElementById('resultWorkspace');
-        const txtOutput = document.getElementById('txtOutput');
-        const svgPreview = document.getElementById('svgPreview');
-        const clearBtn = document.getElementById('clearBtn');
-        const copyBtn = document.getElementById('copyBtn');
-        const copyText = document.getElementById('copyText');
-        const downloadTxtBtn = document.getElementById('downloadTxtBtn');
-        const toast = document.getElementById('toast');
-        const toastMsg = document.getElementById('toastMsg');
-        const statFileName = document.getElementById('statFileName');
-        const sizeStatus = document.getElementById('sizeStatus');
-        const charCount = document.getElementById('charCount');
-
-        function showToast(message) {
-            toastMsg.textContent = message;
-            toast.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-3');
-            toast.classList.add('opacity-100', 'translate-y-0');
-            setTimeout(() => {
-                toast.classList.remove('opacity-100', 'translate-y-0');
-                toast.classList.add('opacity-0', 'pointer-events-none', 'translate-y-3');
-            }, 2500);
-        }
-
-        // Tối ưu và nén mã SVG về 1 dòng phẳng
-        function minifySvg(svgString) {
-            return svgString
-                .replace(/<!--[\s\S]*?-->/g, '')
-                .replace(/>\s+</g, '><')
-                .replace(/\s+/g, ' ')
-                .trim();
-        }
-
-        function processSvgFile(file) {
-            if (!file) return;
-
-            state.fileName = file.name;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const content = e.target.result;
-                
-                // Kiểm tra xem có đúng định dạng SVG/XML hay không
-                if (!content.includes('<svg')) {
-                    alert('File đã chọn không chứa mã SVG hợp lệ. Vui lòng chọn đúng file .svg trong mục Tệp/Files.');
-                    return;
-                }
-
-                state.minifiedSvgCode = minifySvg(content);
-
-                // Update UI Text & Data
-                statFileName.textContent = state.fileName;
-                txtOutput.value = state.minifiedSvgCode;
-                sizeStatus.textContent = `Dung lượng: ${(new Blob([state.minifiedSvgCode]).size / 1024).toFixed(1)} KB`;
-                charCount.textContent = `${state.minifiedSvgCode.length.toLocaleString()} Ký tự`;
-
-                // Render Live Preview
-                svgPreview.innerHTML = content;
-                const svgEl = svgPreview.querySelector('svg');
-                if (svgEl) {
-                    svgEl.setAttribute('width', '100%');
-                    svgEl.setAttribute('height', '100%');
-                    svgEl.style.maxHeight = '100%';
-                    svgEl.style.objectFit = 'contain';
-                }
-
-                dropZone.classList.add('hidden');
-                resultWorkspace.classList.remove('hidden');
-                clearBtn.classList.remove('hidden');
-            };
-
-            reader.readAsText(file);
-        }
-
-        dropZone.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', (e) => e.target.files[0] && processSvgFile(e.target.files[0]));
-
-        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('bg-slate-800'); });
-        dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); dropZone.classList.remove('bg-slate-800'); });
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('bg-slate-800');
-            e.dataTransfer.files[0] && processSvgFile(e.dataTransfer.files[0]);
-        });
-
-        // Nút Sao chép
-        copyBtn.addEventListener('click', async () => {
-            if (!txtOutput.value) return;
-            try {
-                await navigator.clipboard.writeText(txtOutput.value);
-                copyText.textContent = 'Đã chép!';
-                showToast('Đã sao chép mã .TXT vào bộ nhớ tạm!');
-                setTimeout(() => copyText.textContent = 'Sao chép TXT', 2000);
-            } catch (e) {
-                txtOutput.select();
-                document.execCommand('copy');
-                showToast('Đã sao chép thành công!');
-            }
-        });
-
-        // Nút Tải xuống file .TXT
-        downloadTxtBtn.addEventListener('click', () => {
-            if (!txtOutput.value) return;
-            const blob = new Blob([txtOutput.value], { type: 'text/plain;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = state.fileName ? `${state.fileName.replace('.svg', '')}_code.txt` : 'svg_code.txt';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            showToast('Đã tải thành công file .TXT!');
-        });
-
-        // Nút Làm mới
-        clearBtn.addEventListener('click', () => {
-            fileInput.value = '';
-            txtOutput.value = '';
-            svgPreview.innerHTML = '';
-            resultWorkspace.classList.add('hidden');
-            clearBtn.classList.add('hidden');
-            dropZone.classList.remove('hidden');
-        });
-
-        lucide.createIcons();
-    </script>
+        
+        <!-- Bản đồ -->
+        <div id="map-container">
+            <canvas id="gameCanvas"></canvas>
+        </div>
+        
+        <!-- Info Panel -->
+        <div id="info-panel">
+            <h3>📌 Thông tin</h3>
+            <div id="info-content">
+                <p style="color:#888;">Click vào thành phố để xem</p>
+            </div>
+        </div>
+    </div>
+    
+    <script src="game.js"></script>
 </body>
 </html>
