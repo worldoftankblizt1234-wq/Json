@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎂 Birthday RTS - Đăng nhập</title>
+    <title>🎂 Birthday RTS - AoH Style</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -12,13 +12,10 @@
             background: #0a0a1a;
             color: #fff;
             height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             overflow: hidden;
         }
         
-        /* ========== MÀN HÌNH ĐĂNG NHẬP ========== */
+        /* ========== LOGIN SCREEN ========== */
         #login-screen {
             position: fixed;
             top: 0;
@@ -115,7 +112,7 @@
             margin-top: 10px;
         }
         
-        .btn-primary:hover {
+        .btn-primary:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 10px 30px rgba(233,69,96,0.3);
         }
@@ -124,24 +121,6 @@
             opacity: 0.5;
             cursor: not-allowed;
             transform: none;
-        }
-        
-        .btn-secondary {
-            width: 100%;
-            padding: 12px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 12px;
-            color: #aaa;
-            font-size: 14px;
-            cursor: pointer;
-            transition: 0.3s;
-            margin-top: 8px;
-        }
-        
-        .btn-secondary:hover {
-            background: rgba(255,255,255,0.1);
-            color: #fff;
         }
         
         .room-info {
@@ -158,27 +137,6 @@
             color: #4ade80;
         }
         
-        .color-preview {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            vertical-align: middle;
-            margin-right: 8px;
-            border: 2px solid rgba(255,255,255,0.2);
-        }
-        
-        .status-dot {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-right: 8px;
-        }
-        .status-dot.online { background: #4ade80; }
-        .status-dot.offline { background: #e94560; }
-        .status-dot.waiting { background: #fbbf24; }
-        
         /* ========== GAME ========== */
         #game-container {
             display: none;
@@ -190,12 +148,134 @@
             display: flex;
         }
         
+        /* ========== SIDEBAR ========== */
+        #sidebar {
+            width: 230px;
+            background: #1a1a2e;
+            padding: 12px;
+            border-right: 2px solid #e94560;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+        
+        #sidebar h2 {
+            color: #e94560;
+            font-size: 18px;
+            text-align: center;
+        }
+        
+        #connection-status {
+            text-align: center;
+            font-size: 11px;
+            padding: 4px;
+            background: #0a0a1a;
+            border-radius: 4px;
+        }
+        
+        #player-info {
+            background: #0f3460;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+        
+        #player-info .label { color: #888; }
+        #player-info .value { color: #ffd700; font-weight: bold; }
+        #player-name-display { color: #ffd700; font-weight: bold; margin-bottom: 4px; }
+        
+        #player-list {
+            flex: 1;
+            overflow-y: auto;
+            background: #0f3460;
+            padding: 8px;
+            border-radius: 8px;
+            min-height: 100px;
+            max-height: 200px;
+        }
+        
+        .player-item {
+            padding: 4px 8px;
+            border-left: 3px solid;
+            margin-bottom: 3px;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            border-radius: 2px;
+        }
+        
+        /* ========== MAP ========== */
+        #map-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #0a0a1a;
+            position: relative;
+        }
+        
+        #gameCanvas {
+            max-width: 100%;
+            max-height: 100vh;
+            cursor: pointer;
+            border: 2px solid #e94560;
+            border-radius: 4px;
+        }
+        
+        /* ========== INFO PANEL ========== */
+        #info-panel {
+            width: 230px;
+            background: #1a1a2e;
+            padding: 12px;
+            border-left: 2px solid #e94560;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+        
+        #info-panel h3 {
+            color: #e94560;
+            font-size: 15px;
+            margin-bottom: 8px;
+        }
+        
+        #info-content {
+            background: #0f3460;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            line-height: 1.8;
+            min-height: 200px;
+            max-height: calc(100vh - 80px);
+            overflow-y: auto;
+        }
+        
+        #info-content button {
+            font-size: 12px;
+        }
+        
+        /* ========== SCROLLBAR ========== */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #1a1a2e; }
+        ::-webkit-scrollbar-thumb { background: #e94560; border-radius: 4px; }
+        
         /* ========== RESPONSIVE ========== */
-        @media (max-width: 600px) {
-            .login-box {
-                padding: 30px 25px;
-            }
+        @media (max-width: 768px) {
+            .login-box { padding: 30px 25px; }
             .login-box h1 { font-size: 24px; }
+            #sidebar { width: 180px; padding: 8px; }
+            #info-panel { width: 180px; padding: 8px; }
+            #sidebar h2 { font-size: 14px; }
+            #player-info { font-size: 11px; padding: 6px; }
+        }
+        
+        @media (max-width: 600px) {
+            #sidebar { width: 140px; }
+            #info-panel { width: 140px; }
+            #sidebar h2 { font-size: 12px; }
+            #player-info { font-size: 10px; padding: 4px; }
+            #info-content { font-size: 10px; padding: 6px; }
         }
     </style>
 </head>
@@ -205,7 +285,7 @@
 <div id="login-screen">
     <div class="login-box">
         <h1>🎂 Birthday RTS</h1>
-        <p class="subtitle">🏰 Chiến lược thời gian thực cho sinh nhật</p>
+        <p class="subtitle">🏰 Chiến lược thời gian thực - AoH Style</p>
         
         <div class="form-group">
             <label>👤 Tên của bạn</label>
@@ -245,40 +325,33 @@
             🔗 Mã phòng sẽ hiện ở đây
         </div>
         
-        <div style="margin-top:10px;text-align:center;font-size:12px;color:#555;">
-            🔒 Dữ liệu lưu trên Firebase Realtime Database
-            <br>⚡ Kết nối P2P qua WebRTC
+        <div style="margin-top:10px;text-align:center;font-size:11px;color:#555;">
+            🔒 Firebase Realtime Database | ⚡ WebRTC P2P
         </div>
     </div>
 </div>
 
-<!-- ========== GAME CONTAINER ========== -->
+<!-- ========== GAME ========== -->
 <div id="game-container">
     <!-- Sidebar -->
     <div id="sidebar">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <h2 style="color:#e94560;font-size:18px;">🎂 RTS</h2>
-            <span id="connection-status" style="font-size:12px;padding:4px 10px;border-radius:12px;background:#333;">🟡 Đang kết nối...</span>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <h2>🎂 RTS</h2>
+            <span id="connection-status" style="font-size:10px;padding:2px 8px;border-radius:10px;background:#333;">🟡 Đang kết nối...</span>
         </div>
         
         <div id="player-info">
-            <div id="player-name-display" style="color:#ffd700;font-weight:bold;">👑 Chưa đăng nhập</div>
+            <div id="player-name-display">👑 Chưa đăng nhập</div>
             <div><span class="label">💰 Vàng:</span> <span class="value" id="gold-display">0</span></div>
+            <div><span class="label">🪵 Gỗ:</span> <span class="value" id="wood-display">0</span></div>
+            <div><span class="label">🪨 Đá:</span> <span class="value" id="stone-display">0</span></div>
             <div><span class="label">🏙️ Thành phố:</span> <span class="value" id="city-count">0</span></div>
             <div><span class="label">⚔️ Quân đội:</span> <span class="value" id="army-display">0</span></div>
             <div><span class="label">📜 Chính sách:</span> <span class="value" id="current-policy">Chưa có</span></div>
         </div>
         
         <div id="player-list">
-            <div style="color:#888;font-size:12px;text-align:center;margin-bottom:8px;">👥 Người chơi (P2P)</div>
-        </div>
-        
-        <div id="chat-container">
-            <div id="chat-messages"></div>
-            <div id="chat-input-row">
-                <input id="chat-input" placeholder="Chat...">
-                <button id="chat-send" onclick="sendChatMessage()">Gửi</button>
-            </div>
+            <div style="color:#888;font-size:11px;text-align:center;margin-bottom:4px;">👥 Người chơi</div>
         </div>
     </div>
     
@@ -291,7 +364,9 @@
     <div id="info-panel">
         <h3>📌 Thông tin</h3>
         <div id="info-content">
-            <p style="color:#888;">Click vào thành phố để quản lý</p>
+            <p style="color:#888;font-size:12px;">Click vào thành phố để quản lý</p>
+            <p style="color:#555;font-size:10px;margin-top:5px;">📌 Click phải để xây dựng</p>
+            <p style="color:#555;font-size:10px;">🎯 Click thành phố của bạn → "Điều quân"</p>
         </div>
     </div>
 </div>
