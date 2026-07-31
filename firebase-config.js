@@ -2,7 +2,6 @@
 // FIREBASE-CONFIG.JS
 // ============================================
 
-// Firebase Config của bạn
 const firebaseConfig = {
     apiKey: "AIzaSyCGXq3xpUv_qaH5R7RB9LlJwsnVhrlewoA",
     authDomain: "country-61ecf.firebaseapp.com",
@@ -14,5 +13,5 @@ const firebaseConfig = {
     measurementId: "G-XQFVPJLF7R"
 };
 
-// Export để dùng trong game.js
+// Lưu vào window để game.js dùng
 window.firebaseConfig = firebaseConfig;
