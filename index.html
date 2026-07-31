@@ -92,26 +92,14 @@
       animation: pulse-red 1s infinite alternate;
     }
     @keyframes pulse-red {
-      0% {
-        filter: brightness(1);
-      }
-      100% {
-        filter: brightness(1.6);
-      }
+      0% { filter: brightness(1); }
+      100% { filter: brightness(1.6); }
     }
 
     /* Scrollbar */
-    ::-webkit-scrollbar {
-      width: 4px;
-      height: 4px;
-    }
-    ::-webkit-scrollbar-track {
-      background: rgba(15, 23, 42, 0.6);
-    }
-    ::-webkit-scrollbar-thumb {
-      background: rgba(100, 116, 139, 0.5);
-      border-radius: 3px;
-    }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+    ::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.5); border-radius: 3px; }
 
     /* Modal Overlay */
     .modal-overlay {
@@ -251,22 +239,10 @@
       opacity: 1;
       transition: all 0.4s ease;
     }
-    .notification.info {
-      background: rgba(30, 58, 95, 0.95);
-      border-color: #3b82f6;
-    }
-    .notification.success {
-      background: rgba(20, 60, 40, 0.95);
-      border-color: #22c55e;
-    }
-    .notification.warning {
-      background: rgba(80, 60, 20, 0.95);
-      border-color: #eab308;
-    }
-    .notification.danger {
-      background: rgba(80, 20, 20, 0.95);
-      border-color: #ef4444;
-    }
+    .notification.info { background: rgba(30, 58, 95, 0.95); border-color: #3b82f6; }
+    .notification.success { background: rgba(20, 60, 40, 0.95); border-color: #22c55e; }
+    .notification.warning { background: rgba(80, 60, 20, 0.95); border-color: #eab308; }
+    .notification.danger { background: rgba(80, 20, 20, 0.95); border-color: #ef4444; }
     .notification.fade-out {
       transform: translateY(-20px);
       opacity: 0;
@@ -325,7 +301,7 @@
       transform: scale(1.02);
     }
 
-    /* Panel */
+    /* Province Panel */
     .province-panel {
       position: fixed;
       bottom: 20px;
@@ -379,9 +355,7 @@
         gap: 8px;
         top: 8px;
       }
-      .top-bar .sep {
-        height: 16px;
-      }
+      .top-bar .sep { height: 16px; }
       .province-panel {
         width: calc(100vw - 30px);
         bottom: 10px;
@@ -394,10 +368,7 @@
         bottom: 10px;
         right: 10px;
       }
-      .modal-box {
-        padding: 20px;
-        margin: 10px;
-      }
+      .modal-box { padding: 20px; margin: 10px; }
     }
   </style>
 </head>
@@ -529,17 +500,9 @@
         </div>
       </div>
 
-      <div class="flex flex-col gap-3">
-        <button id="btn-create-game" class="btn-primary w-full justify-center text-base py-3" disabled>
-          <i class="fa-solid fa-plus"></i> Tạo phòng mới
-        </button>
-        <div class="flex gap-2">
-          <input type="text" id="gameIdInput" placeholder="Nhập mã phòng..." class="flex-1 bg-slate-800/80 border border-slate-700 focus:border-amber-400 rounded-xl px-4 py-3 text-slate-100 font-medium outline-none transition text-sm">
-          <button id="btn-join-game" class="btn-secondary px-6" disabled>
-            <i class="fa-solid fa-right-to-bracket"></i> Tham gia
-          </button>
-        </div>
-      </div>
+      <button id="btn-play-now" class="btn-primary w-full justify-center text-base py-3" disabled>
+        <i class="fa-solid fa-play"></i> VÀO GAME NGAY
+      </button>
     </div>
   </div>
 
@@ -630,11 +593,13 @@
     window.closeModal = gameModule.closeModal;
 
     // ============================================================
-    // KHỞI TẠO UI SAU KHI IMPORT
+    // LẤY DỮ LIỆU TỪ GAME.JS
     // ============================================================
     const { COUNTRIES, GameData, CONFIG } = gameModule;
 
-    // Render danh sách quốc gia
+    // ============================================================
+    // RENDER DANH SÁCH QUỐC GIA
+    // ============================================================
     function renderCountryList() {
       const container = document.getElementById('country-list');
       container.innerHTML = '';
@@ -660,8 +625,7 @@
           card.addEventListener('click', () => {
             document.querySelectorAll('.country-card').forEach(c => c.classList.remove('selected'));
             card.classList.add('selected');
-            document.getElementById('btn-create-game').disabled = false;
-            document.getElementById('btn-join-game').disabled = false;
+            document.getElementById('btn-play-now').disabled = false;
           });
         }
 
@@ -669,38 +633,76 @@
       });
     }
 
-    // Setup events
+    // ============================================================
+    // VÀO GAME NGAY - KHÔNG CẦN MÃ PHÒNG
+    // ============================================================
+    async function playNow() {
+      const selected = document.querySelector('.country-card.selected');
+      if (!selected) {
+        alert('Vui lòng chọn quốc gia!');
+        return;
+      }
+
+      const country = selected.dataset.country;
+      const playerName = document.getElementById('playerNameInput').value.trim() || 'Napoleon';
+
+      // Đăng nhập Firebase
+      await window.loginWithNickname(playerName);
+
+      // Gán quốc gia đã chọn
+      GameData.gameState.currentCountry = country;
+
+      // Tìm phòng trống hoặc tạo mới
+      try {
+        const { database, ref, get, query, orderByChild, limitToFirst } = await import('firebase/database');
+        const gamesRef = ref(database, 'games');
+        const snapshot = await get(query(gamesRef, orderByChild('status'), limitToFirst(10)));
+
+        let targetGameId = null;
+
+        if (snapshot.exists()) {
+          const games = snapshot.val();
+          // Tìm phòng đang ở trạng thái lobby
+          for (const [id, data] of Object.entries(games)) {
+            if (data.status === 'lobby' && data.players && Object.keys(data.players).length < CONFIG.MAX_PLAYERS) {
+              targetGameId = id;
+              break;
+            }
+          }
+        }
+
+        if (targetGameId) {
+          // Tham gia phòng có sẵn
+          await window.joinGame(targetGameId);
+        } else {
+          // Tạo phòng mới
+          await window.createGame();
+        }
+
+        // Đóng setup modal
+        document.getElementById('setupModal').classList.remove('active');
+
+      } catch (error) {
+        console.error('Lỗi vào game:', error);
+        // Fallback: tạo phòng mới
+        await window.createGame();
+        document.getElementById('setupModal').classList.remove('active');
+      }
+    }
+
+    // ============================================================
+    // SETUP UI EVENTS
+    // ============================================================
     function setupUIEvents() {
-      // Đăng nhập
+      // Đăng nhập bằng Enter
       document.getElementById('playerNameInput').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
-          window.loginWithNickname(e.target.value);
+          document.getElementById('btn-play-now').click();
         }
       });
 
-      // Tạo phòng
-      document.getElementById('btn-create-game').addEventListener('click', () => {
-        const selected = document.querySelector('.country-card.selected');
-        if (!selected) return;
-        const country = selected.dataset.country;
-        // Set vào GameData để game.js biết
-        GameData.gameState.currentCountry = country;
-        window.createGame();
-      });
-
-      // Tham gia phòng
-      document.getElementById('btn-join-game').addEventListener('click', () => {
-        const selected = document.querySelector('.country-card.selected');
-        if (!selected) return;
-        const country = selected.dataset.country;
-        GameData.gameState.currentCountry = country;
-        const gameId = document.getElementById('gameIdInput').value.trim();
-        if (!gameId) {
-          alert('Vui lòng nhập mã phòng!');
-          return;
-        }
-        window.joinGame(gameId);
-      });
+      // Nút "Vào game ngay"
+      document.getElementById('btn-play-now').addEventListener('click', playNow);
 
       // Đóng panel
       document.getElementById('closePanelBtn').addEventListener('click', () => {
@@ -715,7 +717,6 @@
 
       // Nút phát triển kinh tế
       document.getElementById('btn-develop').addEventListener('click', () => {
-        // Gọi hàm từ game.js nếu có
         if (window.developEconomy) {
           window.developEconomy(GameData.gameState.selectedProvince);
         } else {
@@ -727,21 +728,20 @@
       document.getElementById('btn-attack').addEventListener('click', () => {
         const hint = document.getElementById('attack-target-hint');
         hint.classList.toggle('hidden');
-        // Kích hoạt chế độ chọn mục tiêu
         GameData.gameState.isAttackMode = !GameData.gameState.isAttackMode;
-        document.getElementById('btn-attack').classList.toggle('btn-danger');
-        document.getElementById('btn-attack').classList.toggle('btn-primary');
-        if (GameData.gameState.isAttackMode) {
-          document.getElementById('btn-attack').innerHTML = '<i class="fa-solid fa-ban"></i> Hủy tấn công';
-        } else {
-          document.getElementById('btn-attack').innerHTML = '<i class="fa-solid fa-swords"></i> Tấn công';
-        }
+        const btn = document.getElementById('btn-attack');
+        btn.classList.toggle('btn-danger');
+        btn.classList.toggle('btn-primary');
+        btn.innerHTML = GameData.gameState.isAttackMode
+          ? '<i class="fa-solid fa-ban"></i> Hủy tấn công'
+          : '<i class="fa-solid fa-swords"></i> Tấn công';
       });
     }
 
-    // Lắng nghe cập nhật GameData để hiển thị province panel
+    // ============================================================
+    // WATCH PROVINCE SELECTION
+    // ============================================================
     function watchProvinceSelection() {
-      // Override selectProvince từ game.js để mở panel
       const originalSelect = window.selectProvince;
       window.selectProvince = function(provinceId) {
         const province = GameData.provinces[provinceId];
@@ -751,17 +751,18 @@
         const panel = document.getElementById('provincePanel');
         document.getElementById('province-name').textContent = province.name || 'Không tên';
         document.getElementById('province-owner').textContent = COUNTRIES[province.country]?.name || province.country;
-        document.getElementById('province-troops').textContent = Object.values(province.units || {}).reduce((a,b) => a+b, 0);
+        document.getElementById('province-troops').textContent = Object.values(province.units || {}).reduce((a, b) => a + b, 0);
         document.getElementById('province-economy').textContent = province.economy || 0;
         panel.classList.add('open');
 
-        // Ẩn/hiện nút hành động dựa trên chủ sở hữu
         const isMine = province.country === GameData.gameState.currentCountry;
         document.getElementById('province-actions').style.display = isMine ? 'flex' : 'none';
       };
     }
 
-    // Mini map
+    // ============================================================
+    // MINI MAP
+    // ============================================================
     function initMiniMap() {
       const canvas = document.getElementById('minimap-canvas');
       const ctx = canvas.getContext('2d');
@@ -787,15 +788,12 @@
       updateMiniMap();
     }
 
-    // Notification system
+    // ============================================================
+    // NOTIFICATION SYSTEM
+    // ============================================================
     window.notify = function(message, type = 'info') {
       const container = document.getElementById('notification-container');
-      const colors = {
-        info: 'info',
-        success: 'success',
-        warning: 'warning',
-        danger: 'danger'
-      };
+      const colors = { info: 'info', success: 'success', warning: 'warning', danger: 'danger' };
       const div = document.createElement('div');
       div.className = `notification ${colors[type] || 'info'}`;
       div.innerHTML = `<span>${message}</span>`;
@@ -807,17 +805,19 @@
       }, 4000);
     };
 
-    // Khởi tạo
+    // ============================================================
+    // KHỞI TẠO
+    // ============================================================
     renderCountryList();
     setupUIEvents();
     watchProvinceSelection();
     initMiniMap();
 
-    console.log('✅ Index.html đã sẵn sàng với game.js từ raw link!');
+    console.log('✅ Index.html đã sẵn sàng!');
     console.log('📦 Quốc gia:', Object.keys(COUNTRIES).length);
     console.log('🗺️ Tỉnh:', Object.keys(GameData.provinces || {}).length);
 
-    // Ẩn loading sau 1s
+    // Ẩn loading
     setTimeout(() => {
       document.getElementById('loading').style.display = 'none';
     }, 1000);
