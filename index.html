@@ -286,11 +286,15 @@
         #gameCanvas {
             max-width: 100%;
             max-height: 100vh;
-            cursor: pointer;
+            cursor: grab;
             border: 2px solid #e94560;
             border-radius: 4px;
             display: block;
             image-rendering: auto;
+        }
+
+        #gameCanvas:active {
+            cursor: grabbing;
         }
 
         /* ========== INFO PANEL ========== */
@@ -420,7 +424,7 @@
             <div class="form-group">
                 <label>🏳️ Chọn quốc gia của bạn</label>
                 <div id="nation-list" style="max-height:200px;overflow-y:auto;background:rgba(255,255,255,0.03);border-radius:8px;padding:4px;">
-                    <div style="text-align:center;color:#888;font-size:12px;padding:10px;">Đang tải danh sách quốc gia...</div>
+                    <div style="text-align:center;color:#888;font-size:12px;padding:10px;">⏳ Đang tải dữ liệu...</div>
                 </div>
             </div>
 
@@ -538,6 +542,7 @@
         let gameRef = null;
         let isFirebaseReady = false;
         let nationsData = [];
+        let mapLoaded = false;
 
         let gameState = {
             cities: [],
@@ -639,9 +644,21 @@
 
         // ==================== LOAD MAP ====================
         async function loadMap() {
+            const nationList = document.getElementById('nation-list');
+            nationList.innerHTML = '<div style="text-align:center;color:#888;font-size:12px;padding:10px;">⏳ Đang tải dữ liệu...</div>';
+
             try {
+                console.log('🔄 Đang tải map.json...');
                 const response = await fetch('map.json');
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: Không tìm thấy file map.json`);
+                }
+
                 mapData = await response.json();
+                console.log('✅ Đã tải map.json thành công!');
+                mapLoaded = true;
+
                 canvas.width = mapData.info?.width || 1280;
                 canvas.height = mapData.info?.height || 881;
 
@@ -658,72 +675,184 @@
                     cities: [],
                 }));
 
-                // Hiển thị danh sách quốc gia lên login
-                renderNationList();
+                // Nếu không có quốc gia nào, tạo dữ liệu mẫu
+                if (nationsData.length === 0) {
+                    console.warn('⚠️ Không tìm thấy quốc gia, tạo dữ liệu mẫu...');
+                    nationsData = [
+                        { id: 1, name: 'Đế chế Đỏ', color: '#e94560', cities: [] },
+                        { id: 2, name: 'Vương quốc Xanh', color: '#4ade80', cities: [] },
+                        { id: 3, name: 'Đế chế Vàng', color: '#fbbf24', cities: [] },
+                        { id: 4, name: 'Vương quốc Tím', color: '#a78bfa', cities: [] },
+                        { id: 5, name: 'Đế chế Cam', color: '#fb923c', cities: [] },
+                    ];
+                }
 
-                gameState.cities = burgs.map(burg => {
-                    let ownerId = null;
-                    let ownerColor = '#666';
-                    let ownerName = null;
+                // Xử lý thành phố
+                if (burgs.length === 0) {
+                    console.warn('⚠️ Không tìm thấy thành phố, tạo dữ liệu mẫu...');
+                    for (let i = 0; i < 25; i++) {
+                        const nation = nationsData[i % nationsData.length];
+                        const city = {
+                            id: i,
+                            name: `Thành phố ${i+1}`,
+                            x: 100 + Math.random() * 1000,
+                            y: 100 + Math.random() * 700,
+                            owner: nation.id,
+                            ownerColor: nation.color,
+                            ownerName: nation.name,
+                            population: 1000 + Math.random() * 5000,
+                            army: Math.floor(Math.random() * 8) + 5,
+                            gold: 100,
+                            wood: 50,
+                            stone: 30,
+                            buildings: [],
+                            isCapital: i === 0 || i === 5 || i === 10 || i === 15 || i === 20,
+                            defense: 10,
+                            type: 'Generic',
+                            morale: 70,
+                            isUnderAttack: false,
+                        };
+                        gameState.cities.push(city);
+                        nation.cities.push({ id: i, name: city.name, x: city.x, y: city.y });
+                    }
+                } else {
+                    // Xử lý thành phố từ dữ liệu thật
+                    gameState.cities = burgs.map(burg => {
+                        let ownerId = null;
+                        let ownerColor = '#666';
+                        let ownerName = null;
 
-                    // Tìm quốc gia sở hữu thành phố này
-                    if (burg.culture !== undefined) {
-                        const culture = cultures.find(c => c.i === burg.culture);
-                        if (culture && culture.name !== 'Wildlands') {
-                            ownerId = culture.i;
-                            ownerColor = culture.color || '#888';
-                            ownerName = culture.name;
-                            // Thêm city vào nation
-                            const nation = nationsData.find(n => n.id === culture.i);
-                            if (nation) {
-                                nation.cities.push({
-                                    id: burg.i,
-                                    name: burg.name || `City ${burg.i}`,
-                                    x: burg.x,
-                                    y: burg.y,
-                                });
+                        if (burg.culture !== undefined) {
+                            const culture = cultures.find(c => c.i === burg.culture);
+                            if (culture && culture.name !== 'Wildlands') {
+                                ownerId = culture.i;
+                                ownerColor = culture.color || '#888';
+                                ownerName = culture.name;
+                                const nation = nationsData.find(n => n.id === culture.i);
+                                if (nation) {
+                                    nation.cities.push({
+                                        id: burg.i,
+                                        name: burg.name || `City ${burg.i}`,
+                                        x: burg.x,
+                                        y: burg.y,
+                                    });
+                                }
                             }
                         }
-                    }
 
-                    return {
-                        id: burg.i,
-                        name: burg.name || `City ${burg.i}`,
-                        x: burg.x,
-                        y: burg.y,
-                        owner: ownerId,
-                        ownerColor: ownerColor,
-                        ownerName: ownerName,
-                        population: burg.population || 1000,
-                        army: Math.floor(Math.random() * 8) + 5,
-                        gold: 100,
-                        wood: 50,
-                        stone: 30,
-                        buildings: [],
-                        isCapital: burg.capital === 1,
-                        defense: 10,
-                        type: burg.type || 'Generic',
-                        morale: 70,
-                        isUnderAttack: false,
-                    };
-                });
+                        return {
+                            id: burg.i,
+                            name: burg.name || `City ${burg.i}`,
+                            x: burg.x,
+                            y: burg.y,
+                            owner: ownerId,
+                            ownerColor: ownerColor,
+                            ownerName: ownerName,
+                            population: burg.population || 1000,
+                            army: Math.floor(Math.random() * 8) + 5,
+                            gold: 100,
+                            wood: 50,
+                            stone: 30,
+                            buildings: [],
+                            isCapital: burg.capital === 1,
+                            defense: 10,
+                            type: burg.type || 'Generic',
+                            morale: 70,
+                            isUnderAttack: false,
+                        };
+                    });
+                }
 
-                // Cập nhật lại danh sách quốc gia với số thành phố
+                // Hiển thị danh sách quốc gia
                 renderNationList();
 
-                console.log('✅ Đã tải bản đồ!');
-                console.log(`📊 ${nationsData.length} quốc gia, ${gameState.cities.length} thành phố`);
+                console.log(`✅ Đã tải xong: ${nationsData.length} quốc gia, ${gameState.cities.length} thành phố`);
 
-                // Zoom vào quốc gia mặc định (nếu có)
+                // Zoom vào quốc gia mặc định
                 if (nationsData.length > 0) {
-                    zoomToNation(nationsData[0].id);
+                    selectNation(nationsData[0].id);
                 }
 
                 render();
                 updateUI();
+
             } catch (error) {
                 console.error('❌ Lỗi tải map:', error);
+
+                // Tạo dữ liệu mẫu khi không load được
+                console.warn('⚠️ Tạo dữ liệu mẫu dự phòng...');
+                createSampleData();
+
+                nationList.innerHTML = `
+                    <div style="text-align:center;color:#fbbf24;font-size:12px;padding:10px;">
+                        ⚠️ Không tìm thấy map.json, dùng dữ liệu mẫu
+                        <br><span style="color:#888;font-size:10px;">${error.message}</span>
+                        <br>
+                        <button onclick="loadMap()" style="
+                            margin-top:8px;
+                            padding:6px 16px;
+                            background:#e94560;
+                            border:none;
+                            border-radius:6px;
+                            color:#fff;
+                            cursor:pointer;
+                            font-size:11px;
+                        ">
+                            🔄 Thử lại
+                        </button>
+                    </div>
+                `;
             }
+        }
+
+        // ==================== TẠO DỮ LIỆU MẪU ====================
+        function createSampleData() {
+            nationsData = [
+                { id: 1, name: 'Đế chế Đỏ', color: '#e94560', cities: [] },
+                { id: 2, name: 'Vương quốc Xanh', color: '#4ade80', cities: [] },
+                { id: 3, name: 'Đế chế Vàng', color: '#fbbf24', cities: [] },
+                { id: 4, name: 'Vương quốc Tím', color: '#a78bfa', cities: [] },
+                { id: 5, name: 'Đế chế Cam', color: '#fb923c', cities: [] },
+                { id: 6, name: 'Vương quốc Hồng', color: '#f472b6', cities: [] },
+                { id: 7, name: 'Đế chế Ngọc', color: '#34d399', cities: [] },
+            ];
+
+            const cityNames = ['Thủ đô', 'Pháo đài', 'Cảng', 'Thương cảng', 'Thành trì', 'Biên cương', 'Trung tâm'];
+            const colors = ['#e94560', '#4ade80', '#fbbf24', '#a78bfa', '#fb923c', '#f472b6', '#34d399'];
+
+            for (let i = 0; i < 28; i++) {
+                const nationIdx = i % nationsData.length;
+                const nation = nationsData[nationIdx];
+                const city = {
+                    id: i,
+                    name: `${cityNames[i % cityNames.length]} ${i+1}`,
+                    x: 100 + Math.random() * 1000,
+                    y: 100 + Math.random() * 700,
+                    owner: nation.id,
+                    ownerColor: nation.color,
+                    ownerName: nation.name,
+                    population: 1000 + Math.random() * 5000,
+                    army: Math.floor(Math.random() * 8) + 5,
+                    gold: 100,
+                    wood: 50,
+                    stone: 30,
+                    buildings: [],
+                    isCapital: i % 7 === 0,
+                    defense: 10,
+                    type: 'Generic',
+                    morale: 70,
+                    isUnderAttack: false,
+                };
+                gameState.cities.push(city);
+                nation.cities.push({ id: i, name: city.name, x: city.x, y: city.y });
+            }
+
+            renderNationList();
+            if (nationsData.length > 0) {
+                selectNation(nationsData[0].id);
+            }
+            render();
+            updateUI();
         }
 
         // ==================== RENDER NATION LIST ====================
@@ -757,7 +886,6 @@
 
             container.innerHTML = html;
 
-            // Nếu chưa chọn, chọn cái đầu tiên
             if (!selectedNationId && nationsData.length > 0) {
                 selectNation(nationsData[0].id);
             }
@@ -772,23 +900,18 @@
             selectedNationName = nation.name;
             playerColor = nation.color;
 
-            // Cập nhật UI
             document.querySelectorAll('.nation-option').forEach(el => {
                 el.classList.toggle('selected', parseInt(el.dataset.nationId) === nationId);
             });
 
-            // Zoom vào quốc gia
             zoomToNation(nationId);
-
             console.log(`✅ Đã chọn quốc gia: ${nation.name}`);
         }
 
         // ==================== ZOOM TO NATION ====================
         function zoomToNation(nationId) {
-            // Tìm tất cả thành phố thuộc quốc gia này
             const cities = gameState.cities.filter(c => c.owner === nationId);
             if (cities.length === 0) {
-                // Nếu không có thành phố, zoom vào giữa bản đồ
                 camera.targetX = 0;
                 camera.targetY = 0;
                 camera.targetZoom = 1;
@@ -796,7 +919,6 @@
                 return;
             }
 
-            // Tính trung tâm của các thành phố
             let sumX = 0,
                 sumY = 0;
             cities.forEach(c => { sumX += c.x;
@@ -804,14 +926,12 @@
             const centerX = sumX / cities.length;
             const centerY = sumY / cities.length;
 
-            // Tính khoảng cách để zoom
             let maxDist = 0;
             cities.forEach(c => {
                 const dist = Math.sqrt(Math.pow(c.x - centerX, 2) + Math.pow(c.y - centerY, 2));
                 if (dist > maxDist) maxDist = dist;
             });
 
-            // Zoom phù hợp
             const canvasSize = Math.min(canvas.width, canvas.height);
             const zoom = Math.min(2, canvasSize / (maxDist * 3 + 200));
 
@@ -819,11 +939,9 @@
             camera.targetY = canvas.height / 2 - centerY * zoom;
             camera.targetZoom = Math.max(0.5, Math.min(2, zoom));
             camera.isAnimating = true;
-
-            console.log(`🔍 Zoom vào ${cities[0].ownerName || 'quốc gia'}: zoom=${camera.targetZoom.toFixed(2)}`);
         }
 
-        // ==================== UPDATE CAMERA ANIMATION ====================
+        // ==================== UPDATE CAMERA ====================
         function updateCamera() {
             if (!camera.isAnimating) return;
 
@@ -922,7 +1040,7 @@
                 script.onload = function() {
                     const script2 = document.createElement('script');
                     script2.src =
-                    'https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js';
+                        'https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js';
                     script2.onload = function() {
                         try {
                             firebase.initializeApp(firebaseConfig);
@@ -1005,7 +1123,6 @@
                 isHost: isHost,
             };
 
-            // Tìm thành phố của quốc gia đã chọn
             const nationCities = gameState.cities.filter(c => c.owner === selectedNationId);
             if (nationCities.length > 0) {
                 nationCities.forEach(city => {
@@ -1018,7 +1135,6 @@
                     updateCity(city);
                 });
             } else {
-                // Nếu không có thành phố, tìm thành phố trống
                 const unownedCity = gameState.cities.find(c => c.owner === null || c.owner === selectedNationId);
                 if (unownedCity) {
                     unownedCity.owner = playerId;
@@ -1676,7 +1792,6 @@
 
         // ==================== VẼ ====================
         function render() {
-            // Cập nhật camera animation
             updateCamera();
 
             ctx.save();
@@ -1684,10 +1799,10 @@
             ctx.fillStyle = '#0a0a1a';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Áp dụng zoom và pan
             ctx.translate(camera.x, camera.y);
             ctx.scale(camera.zoom, camera.zoom);
 
+            // Vẽ map SVG
             const img = new Image();
             img.src = 'map.svg';
             img.onload = function() {
@@ -1696,14 +1811,35 @@
                 ctx.restore();
             };
             img.onerror = function() {
+                // Nếu không có map.svg, vẽ lưới nền
+                drawGrid();
                 drawGameElements();
                 ctx.restore();
             };
 
             // Nếu image chưa load, vẫn vẽ elements
             if (!img.complete) {
+                drawGrid();
                 drawGameElements();
                 ctx.restore();
+            }
+        }
+
+        function drawGrid() {
+            ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+            ctx.lineWidth = 1;
+            const step = 50;
+            for (let x = 0; x < canvas.width; x += step) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += step) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
             }
         }
 
@@ -1740,7 +1876,6 @@
                 const isMine = city.owner === playerId;
                 const isSelected = selectedCity && selectedCity.id === city.id;
 
-                // Màu sắc: ưu tiên màu của người chơi, sau đó màu quốc gia
                 let color = '#666';
                 if (city.owner && gameState.players[city.owner]) {
                     color = gameState.players[city.owner].color;
@@ -1813,7 +1948,6 @@
                 ctx.fillStyle = moraleColor;
                 ctx.fillRect(moraleX, moraleY, moraleWidth * (city.morale / 100), 4);
 
-                // Tên quốc gia
                 const ownerName = city.owner && gameState.players[city.owner] ? gameState.players[city.owner].name :
                     city.ownerName;
                 if (ownerName) {
@@ -1949,8 +2083,7 @@
             canvas.addEventListener('mouseup', function(e) {
                 if (isDragging) {
                     isDragging = false;
-                    canvas.style.cursor = 'default';
-                    // Nếu kéo ít hơn 5px thì coi như click
+                    canvas.style.cursor = 'grab';
                     const dx = e.clientX - dragStartX;
                     const dy = e.clientY - dragStartY;
                     if (Math.sqrt(dx * dx + dy * dy) < 5) {
@@ -1961,7 +2094,7 @@
 
             canvas.addEventListener('mouseleave', function() {
                 isDragging = false;
-                canvas.style.cursor = 'default';
+                canvas.style.cursor = 'grab';
             });
 
             canvas.addEventListener('contextmenu', function(e) {
@@ -1977,7 +2110,6 @@
                 showBuildMenu(selectedCity);
             });
 
-            // Wheel zoom
             canvas.addEventListener('wheel', function(e) {
                 e.preventDefault();
                 const delta = e.deltaY > 0 ? -0.1 : 0.1;
@@ -1985,7 +2117,7 @@
                 camera.targetZoom = newZoom;
                 camera.isAnimating = true;
                 render();
-            });
+            }, { passive: false });
         }
 
         function handleClick(e) {
@@ -1995,7 +2127,6 @@
             const x = (e.clientX - rect.left) * scaleX;
             const y = (e.clientY - rect.top) * scaleY;
 
-            // Chuyển đổi tọa độ click sang không gian bản đồ (có zoom)
             const mapX = (x - camera.x) / camera.zoom;
             const mapY = (y - camera.y) / camera.zoom;
 
@@ -2388,6 +2519,7 @@
         window.prepareInvasion = prepareInvasion;
         window.showInvasionAmount = showInvasionAmount;
         window.executeInvasion = executeInvasion;
+        window.loadMap = loadMap;
         window.selectedCity = () => selectedCity;
 
         // ==================== KHỞI TẠO ====================
@@ -2396,14 +2528,6 @@
             setupLogin();
             setupEvents();
             loadMap();
-
-            // Click ra ngoài để bỏ chọn nation
-            document.addEventListener('click', function(e) {
-                const nationList = document.getElementById('nation-list');
-                if (nationList && !nationList.contains(e.target)) {
-                    // Không làm gì, giữ nguyên chọn
-                }
-            });
         };
     </script>
 
