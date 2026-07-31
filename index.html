@@ -3,30 +3,54 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Age of Strategy - AoH Web Game</title>
+  <title>Age of Strategy - AoH Multiplayer</title>
+
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- FontAwesome Icons -->
+  <!-- FontAwesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  
+
+  <!-- ===== FIREBASE CONFIG (NHÚNG TRỰC TIẾP) ===== -->
+  <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+        "firebase/database": "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"
+      }
+    }
+  </script>
+
   <style>
+    /* Reset & Base */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
     body {
       user-select: none;
       -webkit-user-select: none;
       overflow: hidden;
-      background-color: #0b1329;
+      background: #0b1329;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      height: 100vh;
+      width: 100vw;
+      position: fixed;
+      top: 0;
+      left: 0;
     }
 
+    /* Map Viewport */
     #map-viewport {
       width: 100vw;
       height: 100vh;
       cursor: grab;
       overflow: hidden;
       position: relative;
-      background: #80b3d5; /* Màu đại dương MapChart */
+      background: #1a3a5a;
+      touch-action: none;
     }
-
     #map-viewport:active {
       cursor: grabbing;
     }
@@ -36,46 +60,50 @@
       position: absolute;
       top: 0;
       left: 0;
-      transition: transform 0.05s ease-out;
+      will-change: transform;
+    }
+    #map-container svg {
+      width: 100%;
+      height: auto;
+      display: block;
     }
 
-    /* Style cho các thẻ path trên bản đồ SVG */
+    /* Province Styles */
     #map-container path {
       stroke: #1e293b;
       stroke-width: 0.7px;
       transition: fill 0.2s, stroke 0.2s, filter 0.2s;
       cursor: pointer;
+      vector-effect: non-scaling-stroke;
     }
-
     #map-container path:hover {
       filter: brightness(1.25);
       stroke: #ffffff;
       stroke-width: 1.5px;
     }
-
-    /* Tỉnh đang chọn */
     #map-container path.selected {
       stroke: #f59e0b !important;
       stroke-width: 2.5px !important;
       filter: brightness(1.3);
     }
-
-    /* Tỉnh mục tiêu tấn công */
     #map-container path.target {
       stroke: #ef4444 !important;
       stroke-width: 2.5px !important;
       animation: pulse-red 1s infinite alternate;
     }
-
     @keyframes pulse-red {
-      0% { filter: brightness(1); }
-      100% { filter: brightness(1.6); }
+      0% {
+        filter: brightness(1);
+      }
+      100% {
+        filter: brightness(1.6);
+      }
     }
 
-    /* Custom Scrollbar */
+    /* Scrollbar */
     ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
+      width: 4px;
+      height: 4px;
     }
     ::-webkit-scrollbar-track {
       background: rgba(15, 23, 42, 0.6);
@@ -84,15 +112,397 @@
       background: rgba(100, 116, 139, 0.5);
       border-radius: 3px;
     }
+
+    /* Modal Overlay */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s ease;
+    }
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .modal-box {
+      background: #0f1a2e;
+      border: 1px solid #2a3a5a;
+      border-radius: 20px;
+      max-width: 700px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 28px;
+      transform: scale(0.95);
+      transition: transform 0.3s ease;
+    }
+    .modal-overlay.active .modal-box {
+      transform: scale(1);
+    }
+
+    /* Country Card */
+    .country-card {
+      background: #1a2a4a;
+      border: 2px solid transparent;
+      border-radius: 12px;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .country-card:hover {
+      background: #2a3a5a;
+      transform: translateY(-2px);
+    }
+    .country-card.selected {
+      border-color: #f59e0b;
+      background: #2a3a5a;
+      box-shadow: 0 0 20px rgba(245, 158, 11, 0.15);
+    }
+    .country-card.disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+    .country-card .flag-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      flex-shrink: 0;
+    }
+
+    /* Top Bar */
+    .top-bar {
+      position: fixed;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      color: #e2e8f0;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 95vw;
+    }
+    .top-bar .sep {
+      width: 1px;
+      height: 24px;
+      background: rgba(255, 255, 255, 0.1);
+    }
+    .top-bar .stat {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .top-bar .stat i {
+      font-size: 14px;
+      opacity: 0.7;
+    }
+    .top-bar .stat .value {
+      font-weight: 600;
+    }
+
+    /* Notifications */
+    #notification-container {
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+      max-width: 90vw;
+      width: 500px;
+    }
+    .notification {
+      pointer-events: auto;
+      padding: 12px 20px;
+      border-radius: 12px;
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transform: translateY(0);
+      opacity: 1;
+      transition: all 0.4s ease;
+    }
+    .notification.info {
+      background: rgba(30, 58, 95, 0.95);
+      border-color: #3b82f6;
+    }
+    .notification.success {
+      background: rgba(20, 60, 40, 0.95);
+      border-color: #22c55e;
+    }
+    .notification.warning {
+      background: rgba(80, 60, 20, 0.95);
+      border-color: #eab308;
+    }
+    .notification.danger {
+      background: rgba(80, 20, 20, 0.95);
+      border-color: #ef4444;
+    }
+    .notification.fade-out {
+      transform: translateY(-20px);
+      opacity: 0;
+    }
+
+    /* Buttons */
+    .btn-primary {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #0f172a;
+      font-weight: 700;
+      padding: 10px 20px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-primary:hover {
+      transform: scale(1.02);
+      box-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);
+    }
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: #e2e8f0;
+      padding: 8px 16px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #dc2626, #b91c1c);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-danger:hover {
+      transform: scale(1.02);
+    }
+
+    /* Panel */
+    .province-panel {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      z-index: 50;
+      width: 320px;
+      max-width: calc(100vw - 40px);
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+      transform: translateY(calc(100% + 30px));
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .province-panel.open {
+      transform: translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* Mini Map */
+    #minimap {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 40;
+      width: 150px;
+      height: 150px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+    }
+    #minimap canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .top-bar {
+        font-size: 11px;
+        padding: 6px 12px;
+        gap: 8px;
+        top: 8px;
+      }
+      .top-bar .sep {
+        height: 16px;
+      }
+      .province-panel {
+        width: calc(100vw - 30px);
+        bottom: 10px;
+        left: 15px;
+        padding: 16px;
+      }
+      #minimap {
+        width: 100px;
+        height: 100px;
+        bottom: 10px;
+        right: 10px;
+      }
+      .modal-box {
+        padding: 20px;
+        margin: 10px;
+      }
+    }
   </style>
 </head>
-<body class="text-slate-100 h-screen w-screen relative">
+<body>
 
-  <!-- ==================== MÀN HÌNH ĐĂNG NHẬP & CHỌN QUỐC GIA ==================== -->
-  <div id="setup-screen" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-lg flex items-center justify-center p-4 overflow-y-auto">
-    <div class="max-w-2xl w-full bg-slate-900 border border-slate-700/80 rounded-3xl p-6 md:p-8 shadow-2xl my-auto">
-      
-      <!-- LOGO & TIÊU ĐỀ -->
+  <!-- ===== LOADING ===== -->
+  <div id="loading" class="fixed inset-0 z-[999] flex items-center justify-center bg-[#0b1329]">
+    <div class="text-center">
+      <div class="w-16 h-16 border-4 border-amber-400/30 border-t-amber-400 rounded-full animate-spin mx-auto mb-4"></div>
+      <p class="text-slate-400 text-sm">Đang tải dữ liệu...</p>
+    </div>
+  </div>
+
+  <!-- ===== MAP VIEWPORT ===== -->
+  <div id="map-viewport">
+    <div id="map-container">
+      <div id="svg-holder"></div>
+    </div>
+  </div>
+
+  <!-- ===== TOP BAR ===== -->
+  <div class="top-bar" id="topBar">
+    <div class="stat">
+      <i class="fa-solid fa-flag text-amber-400"></i>
+      <span id="player-country-display" class="font-medium">---</span>
+    </div>
+    <div class="sep"></div>
+    <div class="stat">
+      <i class="fa-solid fa-coins text-yellow-400"></i>
+      <span class="value text-emerald-400" id="goldDisplay">0</span>
+    </div>
+    <div class="stat">
+      <i class="fa-solid fa-users text-blue-400"></i>
+      <span class="value text-blue-300" id="manpowerDisplay">0</span>
+    </div>
+    <div class="stat">
+      <i class="fa-solid fa-oil-well text-orange-400"></i>
+      <span class="value text-orange-300" id="oilDisplay">0</span>
+    </div>
+    <div class="sep"></div>
+    <div class="stat">
+      <i class="fa-solid fa-hourglass-half text-amber-300"></i>
+      <span>Lượt: <strong id="turnDisplay" class="text-amber-300">0</strong></span>
+    </div>
+    <div class="stat">
+      <i class="fa-solid fa-swords text-red-400"></i>
+      <span class="value text-red-300" id="warCountDisplay">0</span>
+    </div>
+    <div class="sep"></div>
+    <div id="turnIndicator" class="text-xs font-medium text-yellow-400">⏳ Đợi lượt...</div>
+  </div>
+
+  <!-- ===== NOTIFICATIONS ===== -->
+  <div id="notification-container"></div>
+
+  <!-- ===== MINI MAP ===== -->
+  <div id="minimap">
+    <canvas id="minimap-canvas"></canvas>
+  </div>
+
+  <!-- ===== PROVINCE PANEL ===== -->
+  <div id="provincePanel" class="province-panel">
+    <div class="flex justify-between items-start mb-3">
+      <div>
+        <h3 id="province-name" class="font-bold text-lg text-amber-300">Tên tỉnh</h3>
+        <p class="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
+          <span>Chủ sở hữu:</span>
+          <span id="province-owner" class="font-semibold text-slate-200">---</span>
+        </p>
+      </div>
+      <button id="closePanelBtn" class="text-slate-400 hover:text-white p-1">
+        <i class="fa-solid fa-xmark text-xl"></i>
+      </button>
+    </div>
+
+    <div class="grid grid-cols-2 gap-2 mb-4 text-sm">
+      <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
+        <div class="text-slate-400 text-[10px] uppercase tracking-wide">Quân đội</div>
+        <div id="province-troops" class="font-bold text-slate-100 text-lg">0</div>
+      </div>
+      <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
+        <div class="text-slate-400 text-[10px] uppercase tracking-wide">Kinh tế</div>
+        <div id="province-economy" class="font-bold text-slate-100 text-lg">0</div>
+      </div>
+    </div>
+
+    <div id="province-actions" class="flex flex-col gap-2">
+      <button id="btn-recruit" class="btn-primary w-full justify-center text-sm">
+        <i class="fa-solid fa-user-plus"></i> Tuyển quân
+      </button>
+      <button id="btn-develop" class="btn-secondary w-full justify-center text-sm">
+        <i class="fa-solid fa-chart-line"></i> Phát triển kinh tế
+      </button>
+      <button id="btn-attack" class="btn-danger w-full justify-center text-sm">
+        <i class="fa-solid fa-swords"></i> Tấn công
+      </button>
+    </div>
+    <div id="attack-target-hint" class="hidden mt-2 p-2 bg-rose-950/50 border border-rose-800/50 rounded-lg text-xs text-rose-200 text-center">
+      <i class="fa-solid fa-circle-info mr-1"></i> Chọn tỉnh mục tiêu để tấn công
+    </div>
+  </div>
+
+  <!-- ===== SETUP MODAL ===== -->
+  <div id="setupModal" class="modal-overlay active">
+    <div class="modal-box">
       <div class="text-center mb-6">
         <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-tr from-amber-500 to-amber-300 text-slate-950 rounded-2xl text-3xl font-black mb-3 shadow-lg shadow-amber-500/20">
           <i class="fa-solid fa-crown"></i>
@@ -100,737 +510,318 @@
         <h1 class="text-2xl md:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-amber-100">
           AGE OF STRATEGY
         </h1>
-        <p class="text-xs md:text-sm text-slate-400 mt-1">Chinh phục Châu Âu - Game Chiến Thuật Theo Lượt</p>
+        <p class="text-sm text-slate-400 mt-1">Multiplayer - Chinh phục Châu Âu</p>
       </div>
 
-      <!-- FORM ĐĂNG NHẬP THÔNG TIN -->
-      <div class="space-y-4 mb-6">
-        <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-            <i class="fa-solid fa-user-shield text-amber-400 mr-1.5"></i> Tên Lãnh Tụ / Người Chơi
-          </label>
-          <input type="text" id="input-player-name" value="Napoleon" placeholder="Nhập tên của bạn..." class="w-full bg-slate-800/80 border border-slate-700 focus:border-amber-400 rounded-xl px-4 py-3 text-slate-100 font-medium outline-none transition text-sm">
-        </div>
+      <div class="mb-4">
+        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+          <i class="fa-solid fa-user-shield text-amber-400 mr-1"></i> Tên lãnh tụ
+        </label>
+        <input type="text" id="playerNameInput" value="Napoleon" placeholder="Nhập tên của bạn..." class="w-full bg-slate-800/80 border border-slate-700 focus:border-amber-400 rounded-xl px-4 py-3 text-slate-100 font-medium outline-none transition text-sm">
       </div>
 
-      <!-- DANH SÁCH CHỌN QUỐC GIA -->
       <div class="mb-6">
         <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-          <i class="fa-solid fa-flag text-amber-400 mr-1.5"></i> Chọn Quốc Gia Khởi Đầu
+          <i class="fa-solid fa-flag text-amber-400 mr-1"></i> Chọn quốc gia
         </label>
-        
-        <div id="country-list" class="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-60 overflow-y-auto pr-1">
-          <!-- Các thẻ chọn quốc gia sẽ được tạo động bằng JS -->
-          <div class="p-4 text-center text-slate-500 text-xs">Đang tải danh sách quốc gia...</div>
+        <div id="country-list" class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
+          <!-- JS sẽ render -->
         </div>
       </div>
 
-      <!-- NÚT BẮT ĐẦU GAME -->
-      <button id="btn-start-game" disabled class="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-extrabold py-3.5 px-6 rounded-2xl shadow-xl flex items-center justify-center gap-2 border border-amber-300/40 active:scale-98 transition text-base">
-        <span>BẮT ĐẦU CHINH PHỤC</span>
-        <i class="fa-solid fa-play"></i>
-      </button>
-
-    </div>
-  </div>
-
-
-  <!-- ==================== GIAO DIỆN CHÍNH TRONG GAME ==================== -->
-
-  <!-- KHUNG HIỂN THỊ BẢN ĐỒ -->
-  <div id="map-viewport">
-    <div id="map-container">
-      <div id="svg-holder" class="w-full h-full"></div>
-    </div>
-  </div>
-
-  <!-- BẢNG THÔNG TIN CẤP CAO (TOP BAR) -->
-  <div class="fixed top-3 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-2xl px-4 md:px-6 py-2 shadow-2xl flex items-center gap-3 md:gap-6 z-20 text-xs md:text-sm">
-    
-    <!-- THÔNG TIN LÃNH TỤ & QUỐC GIA -->
-    <div class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition" id="topbar-profile" title="Xem thông tin người chơi">
-      <span class="w-4 h-4 rounded-full border border-white/40 flex-shrink-0" id="player-flag"></span>
-      <div class="flex flex-col">
-        <span class="font-bold text-amber-400 leading-none" id="player-country-display">Đang tải...</span>
-        <span class="text-[10px] text-slate-400 mt-0.5 leading-none" id="player-name-display">Lãnh tụ</span>
-      </div>
-    </div>
-
-    <div class="h-5 w-px bg-slate-700"></div>
-
-    <!-- VÀNG & THU NHẬP -->
-    <div class="flex items-center gap-1.5" title="Ngân sách quốc gia">
-      <i class="fa-solid fa-coins text-yellow-400"></i>
-      <span class="font-semibold text-emerald-400" id="player-gold">0</span>
-      <span class="text-[11px] text-slate-400" id="player-income">(+0)</span>
-    </div>
-
-    <div class="h-5 w-px bg-slate-700"></div>
-
-    <!-- TỔNG QUÂN SỐ -->
-    <div class="flex items-center gap-1.5" title="Tổng lực lượng quân sự">
-      <i class="fa-solid fa-shield-halved text-blue-400"></i>
-      <span class="font-semibold text-blue-300" id="player-total-troops">0</span>
-    </div>
-
-    <div class="h-5 w-px bg-slate-700"></div>
-
-    <!-- LƯỢT CHƠI -->
-    <div class="flex items-center gap-1.5">
-      <i class="fa-solid fa-hourglass-half text-amber-300"></i>
-      <span>Lượt: <strong id="current-turn" class="text-amber-300">1</strong></span>
-    </div>
-  </div>
-
-  <!-- NÚT ZOOM & ĐỔI QUỐC GIA -->
-  <div class="fixed top-20 right-4 flex flex-col gap-2 z-20">
-    <button id="btn-zoom-in" class="w-10 h-10 bg-slate-800/90 hover:bg-slate-700 border border-slate-600 rounded-xl flex items-center justify-center text-lg shadow-lg active:scale-95 transition" title="Phóng to">
-      <i class="fa-solid fa-plus"></i>
-    </button>
-    <button id="btn-zoom-out" class="w-10 h-10 bg-slate-800/90 hover:bg-slate-700 border border-slate-600 rounded-xl flex items-center justify-center text-lg shadow-lg active:scale-95 transition" title="Thu nhỏ">
-      <i class="fa-solid fa-minus"></i>
-    </button>
-    <button id="btn-reset-view" class="w-10 h-10 bg-slate-800/90 hover:bg-slate-700 border border-slate-600 rounded-xl flex items-center justify-center text-base shadow-lg active:scale-95 transition" title="Đặt lại vị trí">
-      <i class="fa-solid fa-crosshairs"></i>
-    </button>
-    <button id="btn-change-country" class="w-10 h-10 bg-amber-600/90 hover:bg-amber-500 text-slate-950 border border-amber-400 rounded-xl flex items-center justify-center text-base shadow-lg active:scale-95 transition mt-2" title="Đổi quốc gia / Chơi lại">
-      <i class="fa-solid fa-arrow-rotate-left"></i>
-    </button>
-  </div>
-
-  <!-- NÚT KẾT THÚC LƯỢT -->
-  <button id="btn-end-turn" class="fixed bottom-6 right-6 z-20 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold px-5 py-3.5 md:px-6 md:py-4 rounded-2xl shadow-xl flex items-center gap-3 border border-amber-300/50 active:scale-95 transition text-sm md:text-base">
-    <span>KẾT THÚC LƯỢT</span>
-    <i class="fa-solid fa-forward"></i>
-  </button>
-
-  <!-- BẢNG TƯƠNG TÁC TỈNH (SIDEBAR MENU) -->
-  <div id="province-panel" class="fixed bottom-6 left-6 z-20 w-80 md:w-96 bg-slate-900/95 backdrop-blur-md border border-slate-700 rounded-2xl p-5 shadow-2xl transition-all duration-300 transform translate-y-full opacity-0 pointer-events-none">
-    <div class="flex justify-between items-start mb-3">
-      <div>
-        <h3 id="prov-title" class="font-bold text-lg text-amber-300">Tên Tỉnh</h3>
-        <p class="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
-          <span>Chủ sở hữu:</span>
-          <span id="prov-owner" class="font-semibold text-slate-200">Không rõ</span>
-        </p>
-      </div>
-      <button id="btn-close-panel" class="text-slate-400 hover:text-white p-1">
-        <i class="fa-solid fa-xmark text-lg"></i>
-      </button>
-    </div>
-
-    <!-- CHỈ SỐ TỈNH -->
-    <div class="grid grid-cols-2 gap-2 mb-4 text-xs md:text-sm">
-      <div class="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/50 flex items-center gap-2.5">
-        <i class="fa-solid fa-person-military-rifle text-blue-400 text-base"></i>
-        <div>
-          <div class="text-slate-400 text-[10px]">Quân đội</div>
-          <div id="prov-troops" class="font-bold text-slate-100">0</div>
-        </div>
-      </div>
-      <div class="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/50 flex items-center gap-2.5">
-        <i class="fa-solid fa-chart-line text-emerald-400 text-base"></i>
-        <div>
-          <div class="text-slate-400 text-[10px]">Kinh tế</div>
-          <div id="prov-economy" class="font-bold text-slate-100">0</div>
+      <div class="flex flex-col gap-3">
+        <button id="btn-create-game" class="btn-primary w-full justify-center text-base py-3" disabled>
+          <i class="fa-solid fa-plus"></i> Tạo phòng mới
+        </button>
+        <div class="flex gap-2">
+          <input type="text" id="gameIdInput" placeholder="Nhập mã phòng..." class="flex-1 bg-slate-800/80 border border-slate-700 focus:border-amber-400 rounded-xl px-4 py-3 text-slate-100 font-medium outline-none transition text-sm">
+          <button id="btn-join-game" class="btn-secondary px-6" disabled>
+            <i class="fa-solid fa-right-to-bracket"></i> Tham gia
+          </button>
         </div>
       </div>
     </div>
-
-    <!-- CÁC HÀNH ĐỘNG DÀNH CHO TỈNH NÀY -->
-    <div id="prov-actions" class="flex flex-col gap-2">
-      <button id="btn-action-recruit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2.5 px-4 rounded-xl flex items-center justify-between text-sm transition active:scale-98">
-        <span class="flex items-center gap-2">
-          <i class="fa-solid fa-user-plus"></i> Tuyển quân (+10)
-        </span>
-        <span class="text-xs bg-blue-800/80 px-2 py-0.5 rounded-md text-blue-200">50 💰</span>
-      </button>
-
-      <button id="btn-action-develop" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2.5 px-4 rounded-xl flex items-center justify-between text-sm transition active:scale-98">
-        <span class="flex items-center gap-2">
-          <i class="fa-solid fa-building-circle-arrow-right"></i> Phát triển kinh tế (+5)
-        </span>
-        <span class="text-xs bg-emerald-800/80 px-2 py-0.5 rounded-md text-emerald-200">100 💰</span>
-      </button>
-
-      <button id="btn-action-attack" class="w-full bg-rose-600 hover:bg-rose-500 text-white font-medium py-2.5 px-4 rounded-xl flex items-center justify-between text-sm transition active:scale-98">
-        <span class="flex items-center gap-2">
-          <i class="fa-solid fa-swords"></i> Tấn công / Di chuyển
-        </span>
-        <i class="fa-solid fa-arrow-right"></i>
-      </button>
-    </div>
-
-    <div id="prov-target-info" class="hidden bg-rose-950/40 border border-rose-800/50 rounded-xl p-3 text-xs text-rose-200 mt-2">
-      <i class="fa-solid fa-circle-info mr-1"></i> Bấm chọn tỉnh mục tiêu để xuất quân!
-    </div>
   </div>
 
-  <!-- MODAL THÔNG BÁO -->
-  <div id="game-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity duration-300">
-    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl text-center transform scale-95 transition-transform duration-300" id="modal-box">
-      <div id="modal-icon" class="text-4xl text-amber-400 mb-3">
-        <i class="fa-solid fa-crown"></i>
+  <!-- ===== LOBBY MODAL ===== -->
+  <div id="lobbyModal" class="modal-overlay">
+    <div class="modal-box">
+      <div id="lobbyContent">
+        <!-- JS sẽ render -->
       </div>
-      <h2 id="modal-title" class="text-xl font-bold text-slate-100 mb-2">Thông báo</h2>
-      <p id="modal-body" class="text-sm text-slate-300 mb-6">Nội dung thông báo...</p>
-      <button id="modal-close" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2.5 rounded-xl transition">
-        Xác nhận
-      </button>
     </div>
   </div>
 
-  <!-- LOGIC GAME ENGINE -->
-  <script>
-    // --- 1. DỮ LIỆU CẤU HÌNH BAN ĐẦU ---
-    const GAME_CONFIG = {
-      svgPath: 'MapChart_Map.svg',
-      jsonPath: 'mapchartSave__europe_detailed__.txt',
-      defaultGold: 300,
-      recruitCost: 50,
-      recruitAmount: 10,
-      developCost: 100,
-      developAmount: 5
-    };
+  <!-- ===== DIPLOMACY MODAL ===== -->
+  <div id="diplomacyModal" class="modal-overlay">
+    <div class="modal-box">
+      <div id="diplomacyContent">
+        <!-- JS sẽ render -->
+      </div>
+    </div>
+  </div>
 
-    // Tên quốc gia dịch chuẩn tiếng Việt tương ứng với mã màu MapChart
-    const COLOR_TO_COUNTRY = {
-      '#8dd3c7': { name: 'Vương Quốc Anh', code: 'UK' },
-      '#999999': { name: 'Đức', code: 'DE' },
-      '#225ea8': { name: 'Pháp', code: 'FR' },
-      '#fb8072': { name: 'Ukraine', code: 'UA' },
-      '#diagonal3_3264c8_ffffff': { name: 'Tây Ban Nha', code: 'ES' },
-      '#fc4e2a': { name: 'Ý', code: 'IT' },
-      '#4daf4a': { name: 'Đan Mạch', code: 'DK' },
-      '#fdd49e': { name: 'Áo', code: 'AT' },
-      '#circles3_a03500_000000': { name: 'Bỉ & Bosnia', code: 'BE' },
-      '#cc3333': { name: 'Estonia', code: 'EE' },
-      '#a6cee3': { name: 'Hy Lạp', code: 'GR' },
-      '#decbe4': { name: 'Thụy Sĩ & Bắc Âu', code: 'SE' },
-      '#d73027': { name: 'Nga', code: 'RU' }
-    };
+  <!-- ===== TECH MODAL ===== -->
+  <div id="techModal" class="modal-overlay">
+    <div class="modal-box">
+      <div id="techContent">
+        <!-- JS sẽ render -->
+      </div>
+    </div>
+  </div>
 
-    let gameState = {
-      turn: 1,
-      playerName: 'Napoleon',
-      playerCountry: null,
-      countries: {},
-      provinces: {},
-      selectedProvinceId: null,
-      targetProvinceId: null,
-      isAttackMode: false
-    };
+  <!-- ===== RECRUIT MODAL ===== -->
+  <div id="recruitModal" class="modal-overlay">
+    <div class="modal-box">
+      <div id="recruitContent">
+        <!-- JS sẽ render -->
+      </div>
+    </div>
+  </div>
 
-    let mapDataRaw = null;
+  <!-- ===== PEACE MODAL ===== -->
+  <div id="peaceModal" class="modal-overlay">
+    <div class="modal-box">
+      <div id="peaceContent">
+        <!-- JS sẽ render -->
+      </div>
+    </div>
+  </div>
 
-    // --- 2. QUẢN LÝ PAN & ZOOM BẢN ĐỒ ---
-    let zoomState = {
-      scale: 1,
-      panning: false,
-      pointX: 0,
-      pointY: 0,
-      startX: 0,
-      startY: 0
-    };
-
-    const viewport = document.getElementById('map-viewport');
-    const container = document.getElementById('map-container');
-
-    function updateTransform() {
-      container.style.transform = `translate(${zoomState.pointX}px, ${zoomState.pointY}px) scale(${zoomState.scale})`;
-    }
-
-    viewport.addEventListener('mousedown', (e) => {
-      if (e.target.closest('#province-panel') || e.target.closest('button')) return;
-      zoomState.panning = true;
-      zoomState.startX = e.clientX - zoomState.pointX;
-      zoomState.startY = e.clientY - zoomState.pointY;
-    });
-
-    window.addEventListener('mouseup', () => { zoomState.panning = false; });
-    
-    window.addEventListener('mousemove', (e) => {
-      if (!zoomState.panning) return;
-      zoomState.pointX = e.clientX - zoomState.startX;
-      zoomState.pointY = e.clientY - zoomState.startY;
-      updateTransform();
-    });
-
-    viewport.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      const xs = (e.clientX - zoomState.pointX) / zoomState.scale;
-      const ys = (e.clientY - zoomState.pointY) / zoomState.scale;
-      const delta = -e.deltaY;
-      
-      (delta > 0) ? (zoomState.scale *= 1.15) : (zoomState.scale /= 1.15);
-      zoomState.scale = Math.min(Math.max(0.4, zoomState.scale), 8);
-
-      zoomState.pointX = e.clientX - xs * zoomState.scale;
-      zoomState.pointY = e.clientY - ys * zoomState.scale;
-      updateTransform();
-    }, { passive: false });
-
-    document.getElementById('btn-zoom-in').onclick = () => {
-      zoomState.scale = Math.min(zoomState.scale * 1.25, 8);
-      updateTransform();
-    };
-    document.getElementById('btn-zoom-out').onclick = () => {
-      zoomState.scale = Math.max(zoomState.scale / 1.25, 0.4);
-      updateTransform();
-    };
-    document.getElementById('btn-reset-view').onclick = () => {
-      zoomState.scale = 1;
-      zoomState.pointX = 0;
-      zoomState.pointY = 0;
-      updateTransform();
-    };
-
-    // --- 3. KHỞI TẠO GAME VÀ NẠP FILE MAP ---
-    window.addEventListener('DOMContentLoaded', async () => {
-      await loadMapData();
-      initUIEvents();
-    });
-
-    async function loadMapData() {
-      try {
-        const [svgRes, jsonRes] = await Promise.all([
-          fetch(GAME_CONFIG.svgPath).catch(() => null),
-          fetch(GAME_CONFIG.jsonPath).catch(() => null)
-        ]);
-
-        if (svgRes && svgRes.ok) {
-          const svgText = await svgRes.text();
-          document.getElementById('svg-holder').innerHTML = svgText;
-        } else {
-          showModal("Thiếu File", "Không tìm thấy file MapChart_Map.svg trong thư mục!");
-          return;
-        }
-
-        if (jsonRes && jsonRes.ok) {
-          mapDataRaw = await jsonRes.json();
-        }
-
-        buildGameStateFromMap();
-        renderCountrySelectionList();
-        bindProvinceClickEvents();
-
-      } catch (err) {
-        console.error("Lỗi nạp dữ liệu:", err);
+  <!-- ===== GAME.JS ===== -->
+  <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+        "firebase/database": "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"
       }
     }
+  </script>
+  <script type="module">
+    // ============================================================
+    // IMPORT GAME.JS TỪ RAW LINK
+    // ============================================================
+    const gameModule = await import('https://raw.githubusercontent.com/worldoftankblizt1234-wq/Json/refs/heads/main/game.js');
 
-    // Phân tích dữ liệu tỉnh thành từ JSON/SVG
-    function buildGameStateFromMap() {
-      gameState.countries = {};
-      gameState.provinces = {};
+    // ============================================================
+    // KẾT NỐI CÁC HÀM TỪ GAME.JS VÀO WINDOW
+    // ============================================================
+    window.loginWithNickname = gameModule.loginWithNickname;
+    window.createGame = gameModule.createGame;
+    window.joinGame = gameModule.joinGame;
+    window.toggleReady = gameModule.toggleReady;
+    window.startGame = gameModule.startGame;
+    window.leaveGame = gameModule.leaveGame;
+    window.showDiplomacy = gameModule.showDiplomacy;
+    window.showTechTree = gameModule.showTechTree;
+    window.showRecruitMenu = gameModule.showRecruitMenu;
+    window.recruitUnits = gameModule.recruitUnits;
+    window.researchTech = gameModule.researchTech;
+    window.declareWar = gameModule.declareWar;
+    window.formAlliance = gameModule.formAlliance;
+    window.breakAlliance = gameModule.breakAlliance;
+    window.tradeAgreement = gameModule.tradeAgreement;
+    window.cancelTrade = gameModule.cancelTrade;
+    window.imposeSanctions = gameModule.imposeSanctions;
+    window.peaceNegotiation = gameModule.peaceNegotiation;
+    window.proposePeace = gameModule.proposePeace;
+    window.acceptPeace = gameModule.acceptPeace;
+    window.closeModal = gameModule.closeModal;
 
-      if (mapDataRaw && mapDataRaw.groups) {
-        for (const [color, group] of Object.entries(mapDataRaw.groups)) {
-          const countryMeta = COLOR_TO_COUNTRY[color] || { name: `Quốc gia (${color})`, code: 'EU' };
-          const cName = countryMeta.name;
+    // ============================================================
+    // KHỞI TẠO UI SAU KHI IMPORT
+    // ============================================================
+    const { COUNTRIES, GameData, CONFIG } = gameModule;
 
-          if (!gameState.countries[cName]) {
-            gameState.countries[cName] = {
-              name: cName,
-              color: color.includes('diagonal') || color.includes('circles') ? '#475569' : color,
-              gold: GAME_CONFIG.defaultGold,
-              provinceCount: 0
-            };
-          }
-
-          group.paths.forEach(provId => {
-            gameState.provinces[provId] = {
-              id: provId,
-              owner: cName,
-              troops: Math.floor(Math.random() * 25) + 10,
-              economy: Math.floor(Math.random() * 15) + 10
-            };
-            gameState.countries[cName].provinceCount++;
-          });
-        }
-      }
-
-      // Xử lý các tỉnh trên SVG chưa nằm trong JSON
-      document.querySelectorAll('#svg-holder path').forEach(p => {
-        const id = p.getAttribute('id') || p.getAttribute('data-name');
-        if (id && !gameState.provinces[id]) {
-          const defaultColor = p.getAttribute('fill') || '#f0f0f0';
-          const meta = COLOR_TO_COUNTRY[defaultColor] || { name: 'Trung Lập', code: 'NL' };
-          const owner = meta.name;
-
-          if (!gameState.countries[owner]) {
-            gameState.countries[owner] = {
-              name: owner,
-              color: defaultColor.startsWith('#') ? defaultColor : '#64748b',
-              gold: GAME_CONFIG.defaultGold,
-              provinceCount: 0
-            };
-          }
-
-          gameState.provinces[id] = {
-            id: id,
-            owner: owner,
-            troops: 10,
-            economy: 10
-          };
-          gameState.countries[owner].provinceCount++;
-        }
-      });
-    }
-
-    // Render danh sách chọn quốc gia ở màn hình Setup
-    function renderCountrySelectionList() {
+    // Render danh sách quốc gia
+    function renderCountryList() {
       const container = document.getElementById('country-list');
       container.innerHTML = '';
 
-      const countries = Object.values(gameState.countries);
-      
-      if (countries.length === 0) {
-        container.innerHTML = `<div class="p-4 text-center text-rose-400 text-xs">Lỗi: Không tìm thấy danh sách quốc gia. Hãy kiểm tra file SVG/TXT.</div>`;
-        return;
-      }
+      Object.entries(COUNTRIES).forEach(([code, country]) => {
+        const card = document.createElement('div');
+        card.className = 'country-card';
+        card.dataset.country = code;
 
-      countries.forEach((country) => {
-        const item = document.createElement('div');
-        item.className = `p-3 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 rounded-xl cursor-pointer flex items-center justify-between transition country-option`;
-        item.dataset.country = country.name;
+        const isSelected = GameData.selectedCountries?.includes(code);
+        if (isSelected) card.classList.add('disabled');
 
-        item.innerHTML = `
-          <div class="flex items-center gap-3">
-            <span class="w-4 h-4 rounded-full border border-white/40 flex-shrink-0" style="background-color: ${country.color}"></span>
-            <div>
-              <div class="font-bold text-sm text-slate-100">${country.name}</div>
-              <div class="text-[10px] text-slate-400">${country.provinceCount} tỉnh thành</div>
-            </div>
+        card.innerHTML = `
+          <span class="flag-dot" style="background:${country.color}"></span>
+          <div class="flex-1">
+            <div class="font-semibold text-sm">${country.name}</div>
+            <div class="text-xs text-slate-400">${country.regions || 0} tỉnh</div>
           </div>
-          <i class="fa-solid fa-circle-check text-amber-400 opacity-0 check-icon"></i>
+          ${isSelected ? '<i class="fa-solid fa-lock text-slate-500"></i>' : '<i class="fa-regular fa-circle-check text-slate-600"></i>'}
         `;
 
-        item.onclick = () => selectStartingCountry(country.name, item);
-        container.appendChild(item);
+        if (!isSelected) {
+          card.addEventListener('click', () => {
+            document.querySelectorAll('.country-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            document.getElementById('btn-create-game').disabled = false;
+            document.getElementById('btn-join-game').disabled = false;
+          });
+        }
+
+        container.appendChild(card);
       });
     }
 
-    function selectStartingCountry(countryName, element) {
-      gameState.playerCountry = countryName;
-
-      document.querySelectorAll('.country-option').forEach(opt => {
-        opt.classList.remove('border-amber-400', 'bg-slate-700/90');
-        opt.querySelector('.check-icon').classList.add('opacity-0');
+    // Setup events
+    function setupUIEvents() {
+      // Đăng nhập
+      document.getElementById('playerNameInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          window.loginWithNickname(e.target.value);
+        }
       });
 
-      element.classList.add('border-amber-400', 'bg-slate-700/90');
-      element.querySelector('.check-icon').classList.remove('opacity-0');
+      // Tạo phòng
+      document.getElementById('btn-create-game').addEventListener('click', () => {
+        const selected = document.querySelector('.country-card.selected');
+        if (!selected) return;
+        const country = selected.dataset.country;
+        // Set vào GameData để game.js biết
+        GameData.gameState.currentCountry = country;
+        window.createGame();
+      });
 
-      document.getElementById('btn-start-game').removeAttribute('disabled');
-    }
+      // Tham gia phòng
+      document.getElementById('btn-join-game').addEventListener('click', () => {
+        const selected = document.querySelector('.country-card.selected');
+        if (!selected) return;
+        const country = selected.dataset.country;
+        GameData.gameState.currentCountry = country;
+        const gameId = document.getElementById('gameIdInput').value.trim();
+        if (!gameId) {
+          alert('Vui lòng nhập mã phòng!');
+          return;
+        }
+        window.joinGame(gameId);
+      });
 
-    // --- 4. BẮT ĐẦU GAME & GIAO DIỆN ---
-    function startGame() {
-      const pNameInput = document.getElementById('input-player-name').value.trim();
-      if (pNameInput) gameState.playerName = pNameInput;
+      // Đóng panel
+      document.getElementById('closePanelBtn').addEventListener('click', () => {
+        document.getElementById('provincePanel').classList.remove('open');
+      });
 
-      // Ẩn màn hình chọn
-      document.getElementById('setup-screen').classList.add('hidden');
+      // Nút tuyển quân
+      document.getElementById('btn-recruit').addEventListener('click', () => {
+        const provinceId = GameData.gameState.selectedProvince;
+        if (provinceId) window.showRecruitMenu(provinceId);
+      });
 
-      renderMapColors();
-      updateTopBarUI();
+      // Nút phát triển kinh tế
+      document.getElementById('btn-develop').addEventListener('click', () => {
+        // Gọi hàm từ game.js nếu có
+        if (window.developEconomy) {
+          window.developEconomy(GameData.gameState.selectedProvince);
+        } else {
+          alert('Chức năng đang phát triển');
+        }
+      });
 
-      showModal("Bắt đầu màn chơi!", `Chào mừng Lãnh tụ ${gameState.playerName}! Bạn đã tiếp quản quốc gia ${gameState.playerCountry}. Hãy mở rộng bờ cõi và chinh phục Châu Âu!`);
-    }
-
-    function renderMapColors() {
-      Object.values(gameState.provinces).forEach(prov => {
-        const elem = document.getElementById(prov.id);
-        if (elem) {
-          const country = gameState.countries[prov.owner];
-          if (country) {
-            elem.setAttribute('fill', country.color);
-          }
+      // Nút tấn công
+      document.getElementById('btn-attack').addEventListener('click', () => {
+        const hint = document.getElementById('attack-target-hint');
+        hint.classList.toggle('hidden');
+        // Kích hoạt chế độ chọn mục tiêu
+        GameData.gameState.isAttackMode = !GameData.gameState.isAttackMode;
+        document.getElementById('btn-attack').classList.toggle('btn-danger');
+        document.getElementById('btn-attack').classList.toggle('btn-primary');
+        if (GameData.gameState.isAttackMode) {
+          document.getElementById('btn-attack').innerHTML = '<i class="fa-solid fa-ban"></i> Hủy tấn công';
+        } else {
+          document.getElementById('btn-attack').innerHTML = '<i class="fa-solid fa-swords"></i> Tấn công';
         }
       });
     }
 
-    function bindProvinceClickEvents() {
-      document.querySelectorAll('#svg-holder path').forEach(path => {
-        path.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const provId = path.getAttribute('id') || path.getAttribute('data-name');
-          if (provId) {
-            onProvinceSelect(provId);
-          }
+    // Lắng nghe cập nhật GameData để hiển thị province panel
+    function watchProvinceSelection() {
+      // Override selectProvince từ game.js để mở panel
+      const originalSelect = window.selectProvince;
+      window.selectProvince = function(provinceId) {
+        const province = GameData.provinces[provinceId];
+        if (!province) return;
+
+        GameData.gameState.selectedProvince = provinceId;
+        const panel = document.getElementById('provincePanel');
+        document.getElementById('province-name').textContent = province.name || 'Không tên';
+        document.getElementById('province-owner').textContent = COUNTRIES[province.country]?.name || province.country;
+        document.getElementById('province-troops').textContent = Object.values(province.units || {}).reduce((a,b) => a+b, 0);
+        document.getElementById('province-economy').textContent = province.economy || 0;
+        panel.classList.add('open');
+
+        // Ẩn/hiện nút hành động dựa trên chủ sở hữu
+        const isMine = province.country === GameData.gameState.currentCountry;
+        document.getElementById('province-actions').style.display = isMine ? 'flex' : 'none';
+      };
+    }
+
+    // Mini map
+    function initMiniMap() {
+      const canvas = document.getElementById('minimap-canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = 150;
+      canvas.height = 150;
+
+      function updateMiniMap() {
+        ctx.clearRect(0, 0, 150, 150);
+        ctx.fillStyle = '#1a3a5a';
+        ctx.fillRect(0, 0, 150, 150);
+
+        const provinces = GameData.provinces || {};
+        Object.values(provinces).forEach(p => {
+          const x = (p.x / CONFIG.MAP_SIZE.width) * 150;
+          const y = (p.y / CONFIG.MAP_SIZE.height) * 150;
+          const color = COUNTRIES[p.country]?.color || '#666';
+          ctx.fillStyle = color;
+          ctx.fillRect(x - 1, y - 1, 3, 3);
         });
-      });
 
-      viewport.addEventListener('click', () => {
-        clearSelection();
-      });
-    }
-
-    // --- 5. TƯƠNG TÁC CHỌN TỈNH ---
-    function onProvinceSelect(provId) {
-      const provData = gameState.provinces[provId];
-      if (!provData) return;
-
-      // Đang ở chế độ tấn công
-      if (gameState.isAttackMode) {
-        if (provId === gameState.selectedProvinceId) return;
-        
-        gameState.targetProvinceId = provId;
-        highlightProvince(provId, 'target');
-        executeAttackOrMove(gameState.selectedProvinceId, gameState.targetProvinceId);
-        return;
+        requestAnimationFrame(updateMiniMap);
       }
-
-      gameState.selectedProvinceId = provId;
-      highlightProvince(provId, 'selected');
-      openProvincePanel(provData);
+      updateMiniMap();
     }
 
-    function highlightProvince(provId, className) {
-      document.querySelectorAll('#svg-holder path').forEach(p => {
-        if (className === 'selected') p.classList.remove('selected', 'target');
-      });
-
-      const elem = document.getElementById(provId);
-      if (elem) {
-        elem.classList.add(className);
-      }
-    }
-
-    function clearSelection() {
-      gameState.selectedProvinceId = null;
-      gameState.targetProvinceId = null;
-      gameState.isAttackMode = false;
-
-      document.querySelectorAll('#svg-holder path').forEach(p => {
-        p.classList.remove('selected', 'target');
-      });
-
-      closeProvincePanel();
-    }
-
-    function openProvincePanel(prov) {
-      const panel = document.getElementById('province-panel');
-      const isMine = (prov.owner === gameState.playerCountry);
-
-      document.getElementById('prov-title').innerText = prov.id.replace(/_/g, ' ');
-      document.getElementById('prov-owner').innerText = prov.owner;
-      document.getElementById('prov-troops').innerText = prov.troops;
-      document.getElementById('prov-economy').innerText = prov.economy;
-
-      const actionsDiv = document.getElementById('prov-actions');
-      const targetInfo = document.getElementById('prov-target-info');
-
-      targetInfo.classList.add('hidden');
-
-      if (isMine) {
-        actionsDiv.classList.remove('hidden');
-      } else {
-        actionsDiv.classList.add('hidden');
-      }
-
-      panel.classList.remove('translate-y-full', 'opacity-0', 'pointer-events-none');
-    }
-
-    function closeProvincePanel() {
-      const panel = document.getElementById('province-panel');
-      panel.classList.add('translate-y-full', 'opacity-0', 'pointer-events-none');
-    }
-
-    // --- 6. XỬ LÝ HÀNH ĐỘNG GAME ---
-    function initUIEvents() {
-      document.getElementById('btn-start-game').onclick = startGame;
-
-      document.getElementById('btn-close-panel').onclick = clearSelection;
-
-      // Đổi quốc gia / Chơi lại
-      document.getElementById('btn-change-country').onclick = () => {
-        document.getElementById('setup-screen').classList.remove('hidden');
+    // Notification system
+    window.notify = function(message, type = 'info') {
+      const container = document.getElementById('notification-container');
+      const colors = {
+        info: 'info',
+        success: 'success',
+        warning: 'warning',
+        danger: 'danger'
       };
+      const div = document.createElement('div');
+      div.className = `notification ${colors[type] || 'info'}`;
+      div.innerHTML = `<span>${message}</span>`;
+      container.appendChild(div);
 
-      // Tuyển quân
-      document.getElementById('btn-action-recruit').onclick = () => {
-        const prov = gameState.provinces[gameState.selectedProvinceId];
-        const country = gameState.countries[gameState.playerCountry];
+      setTimeout(() => {
+        div.classList.add('fade-out');
+        setTimeout(() => div.remove(), 500);
+      }, 4000);
+    };
 
-        if (!prov || !country) return;
+    // Khởi tạo
+    renderCountryList();
+    setupUIEvents();
+    watchProvinceSelection();
+    initMiniMap();
 
-        if (country.gold >= GAME_CONFIG.recruitCost) {
-          country.gold -= GAME_CONFIG.recruitCost;
-          prov.troops += GAME_CONFIG.recruitAmount;
+    console.log('✅ Index.html đã sẵn sàng với game.js từ raw link!');
+    console.log('📦 Quốc gia:', Object.keys(COUNTRIES).length);
+    console.log('🗺️ Tỉnh:', Object.keys(GameData.provinces || {}).length);
 
-          document.getElementById('prov-troops').innerText = prov.troops;
-          updateTopBarUI();
-        } else {
-          showModal("Thiếu Ngân Sách", "Bạn cần ít nhất 50 vàng để tuyển quân!");
-        }
-      };
-
-      // Phát triển kinh tế
-      document.getElementById('btn-action-develop').onclick = () => {
-        const prov = gameState.provinces[gameState.selectedProvinceId];
-        const country = gameState.countries[gameState.playerCountry];
-
-        if (!prov || !country) return;
-
-        if (country.gold >= GAME_CONFIG.developCost) {
-          country.gold -= GAME_CONFIG.developCost;
-          prov.economy += GAME_CONFIG.developAmount;
-
-          document.getElementById('prov-economy').innerText = prov.economy;
-          updateTopBarUI();
-        } else {
-          showModal("Thiếu Ngân Sách", "Bạn cần ít nhất 100 vàng để nâng cấp kinh tế!");
-        }
-      };
-
-      // Tấn công
-      document.getElementById('btn-action-attack').onclick = () => {
-        gameState.isAttackMode = true;
-        document.getElementById('prov-target-info').classList.remove('hidden');
-      };
-
-      // Kết thúc lượt
-      document.getElementById('btn-end-turn').onclick = processEndTurn;
-
-      // Modal Button
-      document.getElementById('modal-close').onclick = hideModal;
-    }
-
-    function executeAttackOrMove(fromId, toId) {
-      const fromProv = gameState.provinces[fromId];
-      const toProv = gameState.provinces[toId];
-
-      if (!fromProv || !toProv) return;
-
-      if (fromProv.troops <= 1) {
-        showModal("Không Thể Ra Quân", "Cần giữ lại ít nhất 1 quân để phòng thủ!");
-        clearSelection();
-        return;
-      }
-
-      const attackingTroops = fromProv.troops - 1;
-      fromProv.troops = 1;
-
-      // DI CHUYỂN CÙNG QUỐC GIA
-      if (fromProv.owner === toProv.owner) {
-        toProv.troops += attackingTroops;
-        showModal("Di Chuyển Quân", `Đã chuyển ${attackingTroops} quân tới tỉnh ${toId.replace(/_/g, ' ')}.`);
-      } 
-      // TẤN CÔNG ĐỊCH
-      else {
-        const defenderTroops = toProv.troops;
-        
-        if (attackingTroops > defenderTroops) {
-          const remainingAttacker = attackingTroops - defenderTroops;
-          const oldOwner = toProv.owner;
-          
-          toProv.owner = fromProv.owner;
-          toProv.troops = remainingAttacker;
-
-          renderMapColors();
-
-          showModal("CHIẾN THẮNG! 🎉", `Quân ta đã đánh bại ${oldOwner} và chiếm thành công tỉnh ${toId.replace(/_/g, ' ')}! Lực lượng còn lại: ${remainingAttacker}.`);
-        } else {
-          const remainingDefender = defenderTroops - attackingTroops;
-          toProv.troops = Math.max(1, remainingDefender);
-
-          showModal("THẤT BẠI 💥", `Quân ta bị đẩy lùi tại ${toId.replace(/_/g, ' ')}. Quân địch còn lại ${toProv.troops} lính.`);
-        }
-      }
-
-      clearSelection();
-      updateTopBarUI();
-    }
-
-    // --- 7. VÒNG LẶP LƯỢT CHƠI & AI ---
-    function processEndTurn() {
-      gameState.turn++;
-
-      // Cộng tiền theo số kinh tế tỉnh
-      Object.keys(gameState.countries).forEach(cName => {
-        let totalIncome = 0;
-        Object.values(gameState.provinces).forEach(p => {
-          if (p.owner === cName) {
-            totalIncome += p.economy;
-          }
-        });
-        gameState.countries[cName].gold += totalIncome;
-      });
-
-      // AI Máy tự nâng cấp
-      processSimpleAI();
-
-      updateTopBarUI();
-      renderMapColors();
-      clearSelection();
-
-      showModal(`Lượt ${gameState.turn}`, `Bắt đầu lượt chơi mới! Thu nhập thuế đã được chuyển vào ngân sách.`);
-    }
-
-    function processSimpleAI() {
-      Object.keys(gameState.countries).forEach(cName => {
-        if (cName === gameState.playerCountry) return;
-
-        const myProvinces = Object.values(gameState.provinces).filter(p => p.owner === cName);
-        if (myProvinces.length === 0) return;
-
-        const randomProv = myProvinces[Math.floor(Math.random() * myProvinces.length)];
-        const country = gameState.countries[cName];
-
-        if (country.gold >= 50) {
-          country.gold -= 50;
-          randomProv.troops += 5;
-        }
-      });
-    }
-
-    // --- 8. UI UPDATES ---
-    function updateTopBarUI() {
-      const pCountry = gameState.countries[gameState.playerCountry];
-      if (!pCountry) return;
-
-      document.getElementById('player-name-display').innerText = gameState.playerName;
-      document.getElementById('player-country-display').innerText = pCountry.name;
-      document.getElementById('player-flag').style.backgroundColor = pCountry.color;
-      document.getElementById('player-gold').innerText = pCountry.gold;
-      
-      let income = 0;
-      let totalTroops = 0;
-      Object.values(gameState.provinces).forEach(p => {
-        if (p.owner === gameState.playerCountry) {
-          income += p.economy;
-          totalTroops += p.troops;
-        }
-      });
-
-      document.getElementById('player-income').innerText = `(+${income})`;
-      document.getElementById('player-total-troops').innerText = totalTroops;
-      document.getElementById('current-turn').innerText = gameState.turn;
-    }
-
-    function showModal(title, bodyText) {
-      document.getElementById('modal-title').innerText = title;
-      document.getElementById('modal-body').innerText = bodyText;
-
-      const modal = document.getElementById('game-modal');
-      const box = document.getElementById('modal-box');
-
-      modal.classList.remove('opacity-0', 'pointer-events-none');
-      box.classList.remove('scale-95');
-      box.classList.add('scale-100');
-    }
-
-    function hideModal() {
-      const modal = document.getElementById('game-modal');
-      const box = document.getElementById('modal-box');
-
-      modal.classList.add('opacity-0', 'pointer-events-none');
-      box.classList.remove('scale-100');
-      box.classList.add('scale-95');
-    }
+    // Ẩn loading sau 1s
+    setTimeout(() => {
+      document.getElementById('loading').style.display = 'none';
+    }, 1000);
   </script>
+
 </body>
 </html>
-
