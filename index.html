@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎂 Birthday RTS - AoH Style</title>
+    <title>🎂 Age of History - Birthday RTS</title>
     <style>
         /* ========== RESET ========== */
         * {
@@ -209,7 +209,7 @@
             border-right: 2px solid #e94560;
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 4px;
             overflow-y: auto;
             flex-shrink: 0;
             z-index: 10;
@@ -413,8 +413,8 @@
     <!-- ========== MÀN HÌNH ĐĂNG NHẬP ========== -->
     <div id="login-screen">
         <div class="login-box">
-            <h1>🎂 Birthday RTS</h1>
-            <p class="subtitle">🏰 Chiến lược thời gian thực - AoH Style</p>
+            <h1>🎂 Age of History</h1>
+            <p class="subtitle">🏰 Chiến lược thời gian thực - Birthday Edition</p>
 
             <div class="form-group">
                 <label>👤 Tên của bạn</label>
@@ -472,18 +472,17 @@
         <!-- Sidebar -->
         <div id="sidebar">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-                <h2>🎂 RTS</h2>
+                <h2>🎂 AoH</h2>
                 <span id="connection-status" style="font-size:9px;padding:2px 6px;border-radius:8px;background:#333;">🟡 Đang kết nối...</span>
             </div>
 
             <div id="player-info">
                 <div id="player-name-display">👑 Chưa đăng nhập</div>
                 <div><span class="label">💰 Vàng:</span> <span class="value" id="gold-display">0</span></div>
-                <div><span class="label">🪵 Gỗ:</span> <span class="value" id="wood-display">0</span></div>
-                <div><span class="label">🪨 Đá:</span> <span class="value" id="stone-display">0</span></div>
-                <div><span class="label">🏙️ Thành phố:</span> <span class="value" id="city-count">0</span></div>
+                <div><span class="label">🏙️ Tỉnh:</span> <span class="value" id="city-count">0</span></div>
                 <div><span class="label">⚔️ Quân đội:</span> <span class="value" id="army-display">0</span></div>
                 <div><span class="label">📜 Chính sách:</span> <span class="value" id="current-policy">Chưa có</span></div>
+                <div><span class="label">🔬 Công nghệ:</span> <span class="value" id="tech-display">0</span></div>
             </div>
 
             <div id="player-list">
@@ -498,11 +497,11 @@
 
         <!-- Info Panel -->
         <div id="info-panel">
-            <h3>📌 Thông tin</h3>
+            <h3>📌 Thông tin tỉnh</h3>
             <div id="info-content">
-                <p style="color:#888;font-size:11px;">Click vào thành phố để quản lý</p>
+                <p style="color:#888;font-size:11px;">Click vào tỉnh để quản lý</p>
                 <p style="color:#555;font-size:9px;margin-top:3px;">📌 Click phải để xây dựng</p>
-                <p style="color:#555;font-size:9px;">🎯 Click thành phố của bạn → "Điều quân"</p>
+                <p style="color:#555;font-size:9px;">🎯 Click tỉnh của bạn → "Điều quân"</p>
             </div>
         </div>
     </div>
@@ -510,7 +509,7 @@
     <!-- ========== JAVASCRIPT - ALL IN ONE ========== -->
     <script>
         // ============================================================
-        // 🎮 GAME.JS - Toàn bộ code trong 1 file HTML
+        // 🎮 AOH - AGE OF HISTORY LOGIC (Tối ưu - Không lag)
         // ============================================================
 
         // ==================== FIREBASE CONFIG ====================
@@ -529,6 +528,10 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
+        // ==================== CACHE MAP IMAGE ====================
+        let mapImage = new Image();
+        let mapImageLoaded = false;
+
         // ==================== GAME STATE ====================
         let playerId = null;
         let playerName = 'Chiến Binh';
@@ -545,14 +548,17 @@
         let mapLoaded = false;
 
         let gameState = {
-            cities: [],
+            provinces: [],
             players: {},
             movingArmies: [],
             gameTime: 0,
             isRunning: true,
+            diplomacy: {},
+            wars: [],
+            alliances: [],
         };
 
-        let selectedCity = null;
+        let selectedProvince = null;
         let isSelectingUnit = false;
         let peerConnections = {};
         let dataChannels = {};
@@ -574,51 +580,57 @@
         let dragStartCamX = 0;
         let dragStartCamY = 0;
 
+        // ==================== RENDER OPTIMIZATION ====================
+        let needsRender = true;
+        let renderFrameId = null;
+        const FPS = 30;
+        let lastRenderTime = 0;
+
         // ==================== CÔNG TRÌNH ====================
         const BUILDINGS = {
-            barracks: { name: 'Doanh trại', cost: 60, icon: '🏛️', effect: 'Tăng sản xuất quân +50%', category: 'military',
-                level: 1, maxLevel: 3, upgradeCost: 40 },
-            stable: { name: 'Chuồng ngựa', cost: 70, icon: '🐴', effect: 'Tạo kỵ binh', category: 'military', level: 1,
-                maxLevel: 3, upgradeCost: 50 },
-            workshop: { name: 'Xưởng vũ khí', cost: 80, icon: '⚔️', effect: 'Sức mạnh quân +20%', category: 'military',
-                level: 1, maxLevel: 3, upgradeCost: 60 },
-            fortress: { name: 'Pháo đài', cost: 120, icon: '🏰', effect: 'Phòng thủ +50%', category: 'military', level: 1,
-                maxLevel: 3, upgradeCost: 80 },
-            wall: { name: 'Tường thành', cost: 90, icon: '🧱', effect: 'Phòng thủ +30%', category: 'military', level: 1,
-                maxLevel: 5, upgradeCost: 50 },
-            farm: { name: 'Nông trại', cost: 40, icon: '🌾', effect: 'Vàng +8/giây', category: 'economy', level: 1,
-                maxLevel: 5, upgradeCost: 30 },
-            market: { name: 'Chợ', cost: 50, icon: '🏪', effect: 'Thương mại +15/giây', category: 'economy', level: 1,
-                maxLevel: 4, upgradeCost: 40 },
-            mine: { name: 'Mỏ vàng', cost: 60, icon: '⛏️', effect: 'Vàng +12/giây', category: 'economy', level: 1,
-                maxLevel: 5, upgradeCost: 45 },
-            port: { name: 'Cảng', cost: 80, icon: '⚓', effect: 'Thương mại +20/giây', category: 'economy', level: 1,
-                maxLevel: 3, upgradeCost: 60 },
-            sawmill: { name: 'Xưởng gỗ', cost: 45, icon: '🪵', effect: 'Gỗ +10/giây', category: 'economy', level: 1,
-                maxLevel: 5, upgradeCost: 35 },
-            quarry: { name: 'Mỏ đá', cost: 55, icon: '🪨', effect: 'Đá +8/giây', category: 'economy', level: 1, maxLevel: 5,
-                upgradeCost: 40 },
-            hospital: { name: 'Bệnh xá', cost: 70, icon: '🏥', effect: 'Phục hồi quân +30%', category: 'civil', level: 1,
+            barracks: { name: 'Doanh trại', cost: 50, icon: '🏛️', effect: 'Tăng sản xuất quân +50%', category: 'military',
+                level: 1, maxLevel: 5, upgradeCost: 40 },
+            stable: { name: 'Chuồng ngựa', cost: 60, icon: '🐴', effect: 'Tạo kỵ binh', category: 'military', level: 1,
                 maxLevel: 4, upgradeCost: 50 },
-            temple: { name: 'Đền thờ', cost: 80, icon: '⛪', effect: 'Tinh thần +25%', category: 'civil', level: 1,
+            workshop: { name: 'Xưởng vũ khí', cost: 70, icon: '⚔️', effect: 'Sức mạnh quân +20%', category: 'military',
+                level: 1, maxLevel: 4, upgradeCost: 60 },
+            fortress: { name: 'Pháo đài', cost: 100, icon: '🏰', effect: 'Phòng thủ +50%', category: 'military', level: 1,
+                maxLevel: 3, upgradeCost: 80 },
+            wall: { name: 'Tường thành', cost: 80, icon: '🧱', effect: 'Phòng thủ +30%', category: 'military', level: 1,
+                maxLevel: 5, upgradeCost: 50 },
+            farm: { name: 'Nông trại', cost: 35, icon: '🌾', effect: 'Vàng +5/giây', category: 'economy', level: 1,
+                maxLevel: 5, upgradeCost: 30 },
+            market: { name: 'Chợ', cost: 45, icon: '🏪', effect: 'Thương mại +10/giây', category: 'economy', level: 1,
+                maxLevel: 4, upgradeCost: 40 },
+            mine: { name: 'Mỏ vàng', cost: 55, icon: '⛏️', effect: 'Vàng +8/giây', category: 'economy', level: 1,
+                maxLevel: 5, upgradeCost: 45 },
+            port: { name: 'Cảng', cost: 70, icon: '⚓', effect: 'Thương mại +15/giây', category: 'economy', level: 1,
+                maxLevel: 3, upgradeCost: 60 },
+            sawmill: { name: 'Xưởng gỗ', cost: 40, icon: '🪵', effect: 'Gỗ +8/giây', category: 'economy', level: 1,
+                maxLevel: 5, upgradeCost: 35 },
+            quarry: { name: 'Mỏ đá', cost: 50, icon: '🪨', effect: 'Đá +6/giây', category: 'economy', level: 1, maxLevel: 5,
+                upgradeCost: 40 },
+            hospital: { name: 'Bệnh xá', cost: 60, icon: '🏥', effect: 'Phục hồi quân +30%', category: 'civil', level: 1,
+                maxLevel: 4, upgradeCost: 50 },
+            temple: { name: 'Đền thờ', cost: 70, icon: '⛪', effect: 'Tinh thần +25%', category: 'civil', level: 1,
                 maxLevel: 4, upgradeCost: 55 },
-            school: { name: 'Trường học', cost: 90, icon: '📚', effect: 'Công nghệ +30%', category: 'civil', level: 1,
+            school: { name: 'Trường học', cost: 80, icon: '📚', effect: 'Công nghệ +30%', category: 'civil', level: 1,
                 maxLevel: 5, upgradeCost: 60 },
-            library: { name: 'Thư viện', cost: 100, icon: '📖', effect: 'Khoa học +40%', category: 'civil', level: 1,
+            library: { name: 'Thư viện', cost: 90, icon: '📖', effect: 'Khoa học +40%', category: 'civil', level: 1,
                 maxLevel: 4, upgradeCost: 70 },
-            workshop_civil: { name: 'Xưởng thủ công', cost: 50, icon: '🔧', effect: 'Sản xuất +20%', category: 'civil',
+            workshop_civil: { name: 'Xưởng thủ công', cost: 45, icon: '🔧', effect: 'Sản xuất +20%', category: 'civil',
                 level: 1, maxLevel: 5, upgradeCost: 35 },
-            palace: { name: 'Cung điện', cost: 200, icon: '👑', effect: 'Mọi chỉ số +20%', category: 'special', level: 1,
+            palace: { name: 'Cung điện', cost: 180, icon: '👑', effect: 'Mọi chỉ số +20%', category: 'special', level: 1,
                 maxLevel: 3, upgradeCost: 150 },
-            monument: { name: 'Tượng đài', cost: 150, icon: '🗽', effect: 'Tinh thần +50%', category: 'special', level: 1,
+            monument: { name: 'Tượng đài', cost: 130, icon: '🗽', effect: 'Tinh thần +50%', category: 'special', level: 1,
                 maxLevel: 3, upgradeCost: 100 },
-            university: { name: 'Đại học', cost: 130, icon: '🎓', effect: 'Công nghệ +50%', category: 'special', level: 1,
+            university: { name: 'Đại học', cost: 110, icon: '🎓', effect: 'Công nghệ +50%', category: 'special', level: 1,
                 maxLevel: 4, upgradeCost: 90 },
-            bank: { name: 'Ngân hàng', cost: 160, icon: '🏦', effect: 'Vàng +30/giây', category: 'special', level: 1,
+            bank: { name: 'Ngân hàng', cost: 140, icon: '🏦', effect: 'Vàng +25/giây', category: 'special', level: 1,
                 maxLevel: 3, upgradeCost: 120 },
         };
 
-        // ==================== CHÍNH TRỊ ====================
+        // ==================== CHÍNH SÁCH ====================
         const POLICIES = {
             democracy: { name: 'Dân chủ', cost: 100, icon: '🗳️', effect: 'Vàng +20%, Quân -10%' },
             monarchy: { name: 'Quân chủ', cost: 80, icon: '👑', effect: 'Quân +30%, Vàng -10%' },
@@ -632,14 +644,14 @@
 
         // ==================== CÔNG NGHỆ ====================
         const TECHNOLOGIES = {
-            agriculture: { name: 'Nông nghiệp', cost: 50, icon: '🌾', effect: 'Vàng +5/giây', level: 0, maxLevel: 5 },
-            military: { name: 'Quân sự', cost: 60, icon: '⚔️', effect: 'Sức mạnh quân +10%', level: 0, maxLevel: 5 },
-            trade: { name: 'Thương mại', cost: 70, icon: '📦', effect: 'Thương mại +15%', level: 0, maxLevel: 5 },
-            defense: { name: 'Phòng thủ', cost: 80, icon: '🛡️', effect: 'Phòng thủ +20%', level: 0, maxLevel: 5 },
-            science: { name: 'Khoa học', cost: 100, icon: '🔬', effect: 'Giảm chi phí XD 10%', level: 0, maxLevel: 5 },
-            diplomacy: { name: 'Ngoại giao', cost: 90, icon: '🤝', effect: 'Quan hệ +20%', level: 0, maxLevel: 5 },
-            engineering: { name: 'Kỹ thuật', cost: 110, icon: '⚙️', effect: 'Xây dựng nhanh +30%', level: 0, maxLevel: 4 },
-            navigation: { name: 'Hàng hải', cost: 120, icon: '⛵', effect: 'Thương mại biển +40%', level: 0, maxLevel: 4 },
+            agriculture: { name: 'Nông nghiệp', cost: 40, icon: '🌾', effect: 'Vàng +3/giây', level: 0, maxLevel: 5 },
+            military: { name: 'Quân sự', cost: 50, icon: '⚔️', effect: 'Sức mạnh quân +10%', level: 0, maxLevel: 5 },
+            trade: { name: 'Thương mại', cost: 60, icon: '📦', effect: 'Thương mại +15%', level: 0, maxLevel: 5 },
+            defense: { name: 'Phòng thủ', cost: 70, icon: '🛡️', effect: 'Phòng thủ +20%', level: 0, maxLevel: 5 },
+            science: { name: 'Khoa học', cost: 80, icon: '🔬', effect: 'Giảm chi phí XD 10%', level: 0, maxLevel: 5 },
+            diplomacy: { name: 'Ngoại giao', cost: 90, icon: '🤝', effect: 'Quan hệ +20%', level: 0, maxLevel: 4 },
+            engineering: { name: 'Kỹ thuật', cost: 100, icon: '⚙️', effect: 'Xây dựng nhanh +30%', level: 0, maxLevel: 4 },
+            navigation: { name: 'Hàng hải', cost: 110, icon: '⛵', effect: 'Thương mại biển +40%', level: 0, maxLevel: 4 },
         };
 
         // ==================== LOAD MAP ====================
@@ -665,63 +677,80 @@
                 const burgs = mapData.burgs || [];
                 const cultures = mapData.cultures || [];
 
-                // Lấy danh sách quốc gia
                 nationsData = cultures.filter(c => c.name && c.name !== 'Wildlands').map(c => ({
                     id: c.i,
                     name: c.name,
                     code: c.code || c.name.substring(0, 2).toUpperCase(),
                     color: c.color || '#888',
                     type: c.type || 'Generic',
-                    cities: [],
+                    provinces: [],
+                    gold: 200,
+                    army: 20,
+                    score: 0,
+                    isAlive: true,
                 }));
 
-                // Nếu không có quốc gia nào, tạo dữ liệu mẫu
                 if (nationsData.length === 0) {
                     console.warn('⚠️ Không tìm thấy quốc gia, tạo dữ liệu mẫu...');
-                    nationsData = [
-                        { id: 1, name: 'Đế chế Đỏ', color: '#e94560', cities: [] },
-                        { id: 2, name: 'Vương quốc Xanh', color: '#4ade80', cities: [] },
-                        { id: 3, name: 'Đế chế Vàng', color: '#fbbf24', cities: [] },
-                        { id: 4, name: 'Vương quốc Tím', color: '#a78bfa', cities: [] },
-                        { id: 5, name: 'Đế chế Cam', color: '#fb923c', cities: [] },
+                    const nationColors = ['#e94560', '#4ade80', '#fbbf24', '#a78bfa', '#fb923c', '#f472b6', '#34d399',
+                        '#60a5fa'
                     ];
+                    const nationNames = ['Đế chế Đỏ', 'Vương quốc Xanh', 'Đế chế Vàng', 'Vương quốc Tím', 'Đế chế Cam',
+                        'Vương quốc Hồng', 'Đế chế Ngọc', 'Vương quốc Dương'
+                    ];
+                    for (let i = 0; i < 8; i++) {
+                        nationsData.push({
+                            id: i + 1,
+                            name: nationNames[i % nationNames.length],
+                            code: nationNames[i % nationNames.length].substring(0, 2).toUpperCase(),
+                            color: nationColors[i % nationColors.length],
+                            type: 'Generic',
+                            provinces: [],
+                            gold: 200,
+                            army: 20,
+                            score: 0,
+                            isAlive: true,
+                        });
+                    }
                 }
 
-                // Xử lý thành phố
                 if (burgs.length === 0) {
-                    console.warn('⚠️ Không tìm thấy thành phố, tạo dữ liệu mẫu...');
-                    for (let i = 0; i < 25; i++) {
+                    console.warn('⚠️ Không tìm thấy tỉnh, tạo dữ liệu mẫu...');
+                    const provinceNames = ['Thủ đô', 'Pháo đài', 'Cảng', 'Thương cảng', 'Thành trì', 'Biên cương',
+                        'Trung tâm', 'Đồng bằng', 'Cao nguyên', 'Thung lũng'
+                    ];
+                    for (let i = 0; i < 30; i++) {
                         const nation = nationsData[i % nationsData.length];
-                        const city = {
+                        const province = {
                             id: i,
-                            name: `Thành phố ${i+1}`,
-                            x: 100 + Math.random() * 1000,
-                            y: 100 + Math.random() * 700,
+                            name: `${provinceNames[i % provinceNames.length]} ${i+1}`,
+                            x: 80 + Math.random() * 1100,
+                            y: 80 + Math.random() * 720,
                             owner: nation.id,
                             ownerColor: nation.color,
                             ownerName: nation.name,
-                            population: 1000 + Math.random() * 5000,
-                            army: Math.floor(Math.random() * 8) + 5,
-                            gold: 100,
-                            wood: 50,
-                            stone: 30,
+                            population: 500 + Math.random() * 4500,
+                            army: Math.floor(Math.random() * 10) + 3,
+                            gold: 80 + Math.random() * 120,
+                            wood: 40 + Math.random() * 60,
+                            stone: 20 + Math.random() * 40,
                             buildings: [],
-                            isCapital: i === 0 || i === 5 || i === 10 || i === 15 || i === 20,
-                            defense: 10,
-                            type: 'Generic',
-                            morale: 70,
+                            isCapital: i % 8 === 0,
+                            defense: 8 + Math.random() * 12,
+                            type: 'Province',
+                            morale: 60 + Math.random() * 35,
                             isUnderAttack: false,
+                            income: 3 + Math.random() * 5,
+                            trade: 2 + Math.random() * 4,
                         };
-                        gameState.cities.push(city);
-                        nation.cities.push({ id: i, name: city.name, x: city.x, y: city.y });
+                        gameState.provinces.push(province);
+                        nation.provinces.push({ id: i, name: province.name, x: province.x, y: province.y });
                     }
                 } else {
-                    // Xử lý thành phố từ dữ liệu thật
-                    gameState.cities = burgs.map(burg => {
+                    gameState.provinces = burgs.map(burg => {
                         let ownerId = null;
                         let ownerColor = '#666';
                         let ownerName = null;
-
                         if (burg.culture !== undefined) {
                             const culture = cultures.find(c => c.i === burg.culture);
                             if (culture && culture.name !== 'Wildlands') {
@@ -730,45 +759,59 @@
                                 ownerName = culture.name;
                                 const nation = nationsData.find(n => n.id === culture.i);
                                 if (nation) {
-                                    nation.cities.push({
+                                    nation.provinces.push({
                                         id: burg.i,
-                                        name: burg.name || `City ${burg.i}`,
+                                        name: burg.name || `Province ${burg.i}`,
                                         x: burg.x,
                                         y: burg.y,
                                     });
                                 }
                             }
                         }
-
                         return {
                             id: burg.i,
-                            name: burg.name || `City ${burg.i}`,
+                            name: burg.name || `Province ${burg.i}`,
                             x: burg.x,
                             y: burg.y,
                             owner: ownerId,
                             ownerColor: ownerColor,
                             ownerName: ownerName,
                             population: burg.population || 1000,
-                            army: Math.floor(Math.random() * 8) + 5,
-                            gold: 100,
-                            wood: 50,
-                            stone: 30,
+                            army: Math.floor(Math.random() * 10) + 3,
+                            gold: 80 + Math.random() * 120,
+                            wood: 40 + Math.random() * 60,
+                            stone: 20 + Math.random() * 40,
                             buildings: [],
                             isCapital: burg.capital === 1,
-                            defense: 10,
-                            type: burg.type || 'Generic',
-                            morale: 70,
+                            defense: 8 + Math.random() * 12,
+                            type: burg.type || 'Province',
+                            morale: 60 + Math.random() * 35,
                             isUnderAttack: false,
+                            income: 3 + Math.random() * 5,
+                            trade: 2 + Math.random() * 4,
                         };
                     });
                 }
 
-                // Hiển thị danh sách quốc gia
                 renderNationList();
+                initDiplomacy();
 
-                console.log(`✅ Đã tải xong: ${nationsData.length} quốc gia, ${gameState.cities.length} thành phố`);
+                // ==================== CACHE MAP IMAGE ====================
+                mapImage = new Image();
+                mapImage.src = 'map.svg';
+                mapImage.onload = function() {
+                    mapImageLoaded = true;
+                    console.log('✅ Đã cache map.svg');
+                    needsRender = true;
+                    render();
+                };
+                mapImage.onerror = function() {
+                    mapImageLoaded = false;
+                    console.warn('⚠️ Không load được map.svg, dùng grid thay thế');
+                    needsRender = true;
+                    render();
+                };
 
-                // Zoom vào quốc gia mặc định
                 if (nationsData.length > 0) {
                     selectNation(nationsData[0].id);
                 }
@@ -778,76 +821,90 @@
 
             } catch (error) {
                 console.error('❌ Lỗi tải map:', error);
-
-                // Tạo dữ liệu mẫu khi không load được
-                console.warn('⚠️ Tạo dữ liệu mẫu dự phòng...');
                 createSampleData();
-
                 nationList.innerHTML = `
-                    <div style="text-align:center;color:#fbbf24;font-size:12px;padding:10px;">
-                        ⚠️ Không tìm thấy map.json, dùng dữ liệu mẫu
-                        <br><span style="color:#888;font-size:10px;">${error.message}</span>
-                        <br>
-                        <button onclick="loadMap()" style="
-                            margin-top:8px;
-                            padding:6px 16px;
-                            background:#e94560;
-                            border:none;
-                            border-radius:6px;
-                            color:#fff;
-                            cursor:pointer;
-                            font-size:11px;
-                        ">
-                            🔄 Thử lại
-                        </button>
-                    </div>
-                `;
+                            <div style="text-align:center;color:#fbbf24;font-size:12px;padding:10px;">
+                                ⚠️ Không tìm thấy map.json, dùng dữ liệu mẫu
+                                <br><span style="color:#888;font-size:10px;">${error.message}</span>
+                                <br>
+                                <button onclick="loadMap()" style="
+                                    margin-top:8px;
+                                    padding:6px 16px;
+                                    background:#e94560;
+                                    border:none;
+                                    border-radius:6px;
+                                    color:#fff;
+                                    cursor:pointer;
+                                    font-size:11px;
+                                ">
+                                    🔄 Thử lại
+                                </button>
+                            </div>
+                        `;
             }
         }
 
         // ==================== TẠO DỮ LIỆU MẪU ====================
         function createSampleData() {
-            nationsData = [
-                { id: 1, name: 'Đế chế Đỏ', color: '#e94560', cities: [] },
-                { id: 2, name: 'Vương quốc Xanh', color: '#4ade80', cities: [] },
-                { id: 3, name: 'Đế chế Vàng', color: '#fbbf24', cities: [] },
-                { id: 4, name: 'Vương quốc Tím', color: '#a78bfa', cities: [] },
-                { id: 5, name: 'Đế chế Cam', color: '#fb923c', cities: [] },
-                { id: 6, name: 'Vương quốc Hồng', color: '#f472b6', cities: [] },
-                { id: 7, name: 'Đế chế Ngọc', color: '#34d399', cities: [] },
+            const nationColors = ['#e94560', '#4ade80', '#fbbf24', '#a78bfa', '#fb923c', '#f472b6', '#34d399', '#60a5fa'];
+            const nationNames = ['Đế chế Đỏ', 'Vương quốc Xanh', 'Đế chế Vàng', 'Vương quốc Tím', 'Đế chế Cam',
+                'Vương quốc Hồng', 'Đế chế Ngọc', 'Vương quốc Dương'
             ];
 
-            const cityNames = ['Thủ đô', 'Pháo đài', 'Cảng', 'Thương cảng', 'Thành trì', 'Biên cương', 'Trung tâm'];
-            const colors = ['#e94560', '#4ade80', '#fbbf24', '#a78bfa', '#fb923c', '#f472b6', '#34d399'];
+            nationsData = [];
+            for (let i = 0; i < 8; i++) {
+                nationsData.push({
+                    id: i + 1,
+                    name: nationNames[i % nationNames.length],
+                    code: nationNames[i % nationNames.length].substring(0, 2).toUpperCase(),
+                    color: nationColors[i % nationColors.length],
+                    type: 'Generic',
+                    provinces: [],
+                    gold: 200,
+                    army: 20,
+                    score: 0,
+                    isAlive: true,
+                });
+            }
 
-            for (let i = 0; i < 28; i++) {
-                const nationIdx = i % nationsData.length;
-                const nation = nationsData[nationIdx];
-                const city = {
+            const provinceNames = ['Thủ đô', 'Pháo đài', 'Cảng', 'Thương cảng', 'Thành trì', 'Biên cương', 'Trung tâm',
+                'Đồng bằng', 'Cao nguyên', 'Thung lũng'
+            ];
+
+            for (let i = 0; i < 30; i++) {
+                const nation = nationsData[i % nationsData.length];
+                const province = {
                     id: i,
-                    name: `${cityNames[i % cityNames.length]} ${i+1}`,
-                    x: 100 + Math.random() * 1000,
-                    y: 100 + Math.random() * 700,
+                    name: `${provinceNames[i % provinceNames.length]} ${i+1}`,
+                    x: 80 + Math.random() * 1100,
+                    y: 80 + Math.random() * 720,
                     owner: nation.id,
                     ownerColor: nation.color,
                     ownerName: nation.name,
-                    population: 1000 + Math.random() * 5000,
-                    army: Math.floor(Math.random() * 8) + 5,
-                    gold: 100,
-                    wood: 50,
-                    stone: 30,
+                    population: 500 + Math.random() * 4500,
+                    army: Math.floor(Math.random() * 10) + 3,
+                    gold: 80 + Math.random() * 120,
+                    wood: 40 + Math.random() * 60,
+                    stone: 20 + Math.random() * 40,
                     buildings: [],
-                    isCapital: i % 7 === 0,
-                    defense: 10,
-                    type: 'Generic',
-                    morale: 70,
+                    isCapital: i % 8 === 0,
+                    defense: 8 + Math.random() * 12,
+                    type: 'Province',
+                    morale: 60 + Math.random() * 35,
                     isUnderAttack: false,
+                    income: 3 + Math.random() * 5,
+                    trade: 2 + Math.random() * 4,
                 };
-                gameState.cities.push(city);
-                nation.cities.push({ id: i, name: city.name, x: city.x, y: city.y });
+                gameState.provinces.push(province);
+                nation.provinces.push({ id: i, name: province.name, x: province.x, y: province.y });
             }
 
             renderNationList();
+            initDiplomacy();
+
+            mapImage = new Image();
+            mapImageLoaded = false;
+
             if (nationsData.length > 0) {
                 selectNation(nationsData[0].id);
             }
@@ -855,23 +912,36 @@
             updateUI();
         }
 
+        // ==================== INIT DIPLOMACY ====================
+        function initDiplomacy() {
+            gameState.diplomacy = {};
+            nationsData.forEach(n1 => {
+                gameState.diplomacy[n1.id] = {};
+                nationsData.forEach(n2 => {
+                    if (n1.id !== n2.id) {
+                        gameState.diplomacy[n1.id][n2.id] = {
+                            relation: 30 + Math.random() * 40,
+                            alliance: false,
+                            war: false,
+                            trade: 20 + Math.random() * 30,
+                        };
+                    }
+                });
+            });
+        }
+
         // ==================== RENDER NATION LIST ====================
         function renderNationList() {
             const container = document.getElementById('nation-list');
             if (!container) return;
-
             if (nationsData.length === 0) {
-                container.innerHTML = `
-                            <div style="text-align:center;color:#888;font-size:12px;padding:10px;">
-                                ⏳ Đang tải dữ liệu...
-                            </div>
-                        `;
+                container.innerHTML =
+                '<div style="text-align:center;color:#888;font-size:12px;padding:10px;">⏳ Đang tải dữ liệu...</div>';
                 return;
             }
-
             let html = '';
             nationsData.forEach(nation => {
-                const cityCount = nation.cities ? nation.cities.length : 0;
+                const provinceCount = nation.provinces ? nation.provinces.length : 0;
                 const isSelected = selectedNationId === nation.id;
                 html += `
                             <div class="nation-option ${isSelected ? 'selected' : ''}" 
@@ -879,13 +949,11 @@
                                  data-nation-id="${nation.id}">
                                 <span class="color-dot" style="background:${nation.color};"></span>
                                 <span class="nation-name">${nation.name}</span>
-                                <span class="nation-cities">🏙️${cityCount}</span>
+                                <span class="nation-cities">🏙️${provinceCount}</span>
                             </div>
                         `;
             });
-
             container.innerHTML = html;
-
             if (!selectedNationId && nationsData.length > 0) {
                 selectNation(nationsData[0].id);
             }
@@ -895,61 +963,53 @@
         function selectNation(nationId) {
             const nation = nationsData.find(n => n.id === nationId);
             if (!nation) return;
-
             selectedNationId = nationId;
             selectedNationName = nation.name;
             playerColor = nation.color;
-
             document.querySelectorAll('.nation-option').forEach(el => {
                 el.classList.toggle('selected', parseInt(el.dataset.nationId) === nationId);
             });
-
             zoomToNation(nationId);
             console.log(`✅ Đã chọn quốc gia: ${nation.name}`);
         }
 
         // ==================== ZOOM TO NATION ====================
         function zoomToNation(nationId) {
-            const cities = gameState.cities.filter(c => c.owner === nationId);
-            if (cities.length === 0) {
+            const provinces = gameState.provinces.filter(p => p.owner === nationId);
+            if (provinces.length === 0) {
                 camera.targetX = 0;
                 camera.targetY = 0;
                 camera.targetZoom = 1;
                 camera.isAnimating = true;
                 return;
             }
-
             let sumX = 0,
                 sumY = 0;
-            cities.forEach(c => { sumX += c.x;
-                sumY += c.y; });
-            const centerX = sumX / cities.length;
-            const centerY = sumY / cities.length;
-
+            provinces.forEach(p => { sumX += p.x;
+                sumY += p.y; });
+            const centerX = sumX / provinces.length;
+            const centerY = sumY / provinces.length;
             let maxDist = 0;
-            cities.forEach(c => {
-                const dist = Math.sqrt(Math.pow(c.x - centerX, 2) + Math.pow(c.y - centerY, 2));
+            provinces.forEach(p => {
+                const dist = Math.sqrt(Math.pow(p.x - centerX, 2) + Math.pow(p.y - centerY, 2));
                 if (dist > maxDist) maxDist = dist;
             });
-
             const canvasSize = Math.min(canvas.width, canvas.height);
             const zoom = Math.min(2, canvasSize / (maxDist * 3 + 200));
-
             camera.targetX = canvas.width / 2 - centerX * zoom;
             camera.targetY = canvas.height / 2 - centerY * zoom;
             camera.targetZoom = Math.max(0.5, Math.min(2, zoom));
             camera.isAnimating = true;
+            needsRender = true;
         }
 
         // ==================== UPDATE CAMERA ====================
         function updateCamera() {
             if (!camera.isAnimating) return;
-
             const speed = 0.08;
             camera.x += (camera.targetX - camera.x) * speed;
             camera.y += (camera.targetY - camera.y) * speed;
             camera.zoom += (camera.targetZoom - camera.zoom) * speed;
-
             if (Math.abs(camera.x - camera.targetX) < 1 &&
                 Math.abs(camera.y - camera.targetY) < 1 &&
                 Math.abs(camera.zoom - camera.targetZoom) < 0.01) {
@@ -958,6 +1018,7 @@
                 camera.zoom = camera.targetZoom;
                 camera.isAnimating = false;
             }
+            needsRender = true;
         }
 
         // ==================== LOGIN ====================
@@ -972,19 +1033,15 @@
 
             loginBtn.addEventListener('click', async function() {
                 playerName = document.getElementById('player-name').value.trim() || 'Chiến Binh';
-
                 if (!selectedNationId) {
                     alert('❌ Vui lòng chọn quốc gia!');
                     return;
                 }
-
                 const nation = nationsData.find(n => n.id === selectedNationId);
                 if (nation) {
                     playerColor = nation.color;
                 }
-
                 const mode = document.getElementById('game-mode').value;
-
                 if (mode === 'join') {
                     roomId = document.getElementById('room-id').value.trim();
                     if (!roomId) {
@@ -994,17 +1051,13 @@
                 } else {
                     roomId = generateRoomId();
                 }
-
                 this.disabled = true;
                 this.textContent = '⏳ Đang kết nối...';
-
                 try {
                     await initFirebase();
                     await joinGame();
-
                     document.getElementById('login-screen').classList.add('hidden');
                     document.getElementById('game-container').classList.add('active');
-
                 } catch (error) {
                     console.error('❌ Lỗi:', error);
                     alert('❌ Không thể kết nối! Vui lòng thử lại.\n' + error.message);
@@ -1034,13 +1087,12 @@
                     resolve();
                     return;
                 }
-
                 const script = document.createElement('script');
                 script.src = 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js';
                 script.onload = function() {
                     const script2 = document.createElement('script');
                     script2.src =
-                        'https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js';
+                    'https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js';
                     script2.onload = function() {
                         try {
                             firebase.initializeApp(firebaseConfig);
@@ -1067,29 +1119,32 @@
 
         async function joinGame() {
             playerId = `player_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
-
             const snapshot = await gameRef.once('value');
             const roomData = snapshot.val();
 
             if (roomData) {
                 isHost = false;
                 gameState.players = roomData.players || {};
-                if (roomData.cities) {
-                    Object.keys(roomData.cities).forEach(key => {
-                        const cityData = roomData.cities[key];
-                        const localCity = gameState.cities.find(c => c.id == key);
-                        if (localCity) {
-                            localCity.owner = cityData.owner;
-                            localCity.army = cityData.army || 0;
-                            localCity.gold = cityData.gold || 0;
-                            localCity.wood = cityData.wood || 0;
-                            localCity.stone = cityData.stone || 0;
-                            localCity.buildings = cityData.buildings || [];
-                            localCity.defense = cityData.defense || 10;
-                            localCity.morale = cityData.morale || 70;
+                if (roomData.provinces) {
+                    Object.keys(roomData.provinces).forEach(key => {
+                        const provData = roomData.provinces[key];
+                        const localProv = gameState.provinces.find(p => p.id == key);
+                        if (localProv) {
+                            localProv.owner = provData.owner;
+                            localProv.army = provData.army || 0;
+                            localProv.gold = provData.gold || 0;
+                            localProv.wood = provData.wood || 0;
+                            localProv.stone = provData.stone || 0;
+                            localProv.buildings = provData.buildings || [];
+                            localProv.defense = provData.defense || 10;
+                            localProv.morale = provData.morale || 70;
+                            localProv.population = provData.population || 1000;
                         }
                     });
                 }
+                if (roomData.diplomacy) gameState.diplomacy = roomData.diplomacy;
+                if (roomData.wars) gameState.wars = roomData.wars || [];
+                if (roomData.alliances) gameState.alliances = roomData.alliances || [];
             } else {
                 isHost = true;
                 gameState.players = {};
@@ -1098,8 +1153,11 @@
                     hostId: playerId,
                     createdAt: Date.now(),
                     players: {},
-                    cities: {},
+                    provinces: {},
                     movingArmies: {},
+                    diplomacy: gameState.diplomacy,
+                    wars: gameState.wars || [],
+                    alliances: gameState.alliances || [],
                 });
             }
 
@@ -1110,10 +1168,8 @@
                 nationId: selectedNationId,
                 nationName: selectedNationName,
                 gold: 300,
-                wood: 150,
-                stone: 100,
                 army: 25,
-                cities: [],
+                provinces: [],
                 buildings: [],
                 technology: {},
                 policy: null,
@@ -1123,32 +1179,31 @@
                 isHost: isHost,
             };
 
-            const nationCities = gameState.cities.filter(c => c.owner === selectedNationId);
-            if (nationCities.length > 0) {
-                nationCities.forEach(city => {
-                    city.owner = playerId;
-                    city.army = 15;
-                    city.gold = 100;
-                    city.wood = 50;
-                    city.stone = 30;
-                    playerData.cities.push(city.id);
-                    updateCity(city);
+            const nationProvinces = gameState.provinces.filter(p => p.owner === selectedNationId);
+            if (nationProvinces.length > 0) {
+                nationProvinces.forEach(prov => {
+                    prov.owner = playerId;
+                    prov.army = 10 + Math.floor(Math.random() * 5);
+                    prov.gold = 80 + Math.random() * 100;
+                    prov.wood = 40 + Math.random() * 50;
+                    prov.stone = 20 + Math.random() * 30;
+                    playerData.provinces.push(prov.id);
+                    updateProvince(prov);
                 });
             } else {
-                const unownedCity = gameState.cities.find(c => c.owner === null || c.owner === selectedNationId);
-                if (unownedCity) {
-                    unownedCity.owner = playerId;
-                    unownedCity.army = 15;
-                    unownedCity.gold = 100;
-                    unownedCity.wood = 50;
-                    unownedCity.stone = 30;
-                    playerData.cities.push(unownedCity.id);
-                    updateCity(unownedCity);
+                const unownedProv = gameState.provinces.find(p => p.owner === null || p.owner === selectedNationId);
+                if (unownedProv) {
+                    unownedProv.owner = playerId;
+                    unownedProv.army = 10;
+                    unownedProv.gold = 80;
+                    unownedProv.wood = 40;
+                    unownedProv.stone = 20;
+                    playerData.provinces.push(unownedProv.id);
+                    updateProvince(unownedProv);
                 }
             }
 
             await gameRef.child('players').child(playerId).set(playerData);
-
             listenToGameChanges();
             initWebRTC();
             startGameLoop();
@@ -1160,7 +1215,6 @@
                     `;
             document.getElementById('connection-status').textContent = '🟢 Đã kết nối';
             document.getElementById('connection-status').style.color = '#4ade80';
-
             console.log(`✅ Đã đăng nhập: ${playerName} (${playerId})`);
             console.log(`🏳️ Quốc gia: ${selectedNationName}`);
         }
@@ -1173,29 +1227,30 @@
                     gameState.players = data;
                     updatePlayerList();
                     updateUI();
-                    render();
+                    needsRender = true;
                     updatePeerConnections();
                 }
             });
 
-            gameRef.child('cities').on('value', function(snapshot) {
+            gameRef.child('provinces').on('value', function(snapshot) {
                 const data = snapshot.val();
                 if (data) {
                     Object.keys(data).forEach(key => {
-                        const cityData = data[key];
-                        const localCity = gameState.cities.find(c => c.id == key);
-                        if (localCity) {
-                            localCity.owner = cityData.owner;
-                            localCity.army = cityData.army || 0;
-                            localCity.gold = cityData.gold || 0;
-                            localCity.wood = cityData.wood || 0;
-                            localCity.stone = cityData.stone || 0;
-                            localCity.buildings = cityData.buildings || [];
-                            localCity.defense = cityData.defense || 10;
-                            localCity.morale = cityData.morale || 70;
+                        const provData = data[key];
+                        const localProv = gameState.provinces.find(p => p.id == key);
+                        if (localProv) {
+                            localProv.owner = provData.owner;
+                            localProv.army = provData.army || 0;
+                            localProv.gold = provData.gold || 0;
+                            localProv.wood = provData.wood || 0;
+                            localProv.stone = provData.stone || 0;
+                            localProv.buildings = provData.buildings || [];
+                            localProv.defense = provData.defense || 10;
+                            localProv.morale = provData.morale || 70;
+                            localProv.population = provData.population || 1000;
                         }
                     });
-                    render();
+                    needsRender = true;
                     updateUI();
                 }
             });
@@ -1204,31 +1259,33 @@
                 const data = snapshot.val();
                 if (data) {
                     gameState.movingArmies = Object.values(data);
-                    render();
+                    needsRender = true;
                 }
             });
         }
 
-        // ==================== UPDATE CITY ====================
-        function updateCity(city) {
+        // ==================== UPDATE PROVINCE ====================
+        function updateProvince(province) {
             return new Promise((resolve) => {
                 if (!gameRef) { resolve(); return; }
-                const cityRef = gameRef.child('cities').child(city.id);
-                cityRef.set({
-                    id: city.id,
-                    name: city.name,
-                    x: city.x,
-                    y: city.y,
-                    owner: city.owner,
-                    army: Math.floor(city.army),
-                    gold: Math.floor(city.gold || 0),
-                    wood: Math.floor(city.wood || 0),
-                    stone: Math.floor(city.stone || 0),
-                    buildings: city.buildings || [],
-                    defense: Math.floor(city.defense || 10),
-                    isCapital: city.isCapital || false,
-                    population: Math.floor(city.population || 1000),
-                    morale: Math.floor(city.morale || 70),
+                const provRef = gameRef.child('provinces').child(province.id);
+                provRef.set({
+                    id: province.id,
+                    name: province.name,
+                    x: province.x,
+                    y: province.y,
+                    owner: province.owner,
+                    army: Math.floor(province.army),
+                    gold: Math.floor(province.gold || 0),
+                    wood: Math.floor(province.wood || 0),
+                    stone: Math.floor(province.stone || 0),
+                    buildings: province.buildings || [],
+                    defense: Math.floor(province.defense || 10),
+                    isCapital: province.isCapital || false,
+                    population: Math.floor(province.population || 1000),
+                    morale: Math.floor(province.morale || 70),
+                    income: province.income || 5,
+                    trade: province.trade || 3,
                 }, resolve);
             });
         }
@@ -1241,7 +1298,6 @@
                     { urls: 'stun:stun1.l.google.com:19302' },
                 ]
             };
-
             Object.keys(gameState.players).forEach(pid => {
                 if (pid !== playerId) {
                     createPeerConnection(pid, config);
@@ -1252,7 +1308,6 @@
         function createPeerConnection(targetId, config) {
             const pc = new RTCPeerConnection(config);
             peerConnections[targetId] = pc;
-
             const channel = pc.createDataChannel(`game-channel-${playerId}-${targetId}`);
             channel.onopen = function() {
                 console.log(`✅ P2P kết nối với ${targetId}`);
@@ -1264,7 +1319,6 @@
                     handlePeerMessage(data, targetId);
                 } catch (e) {}
             };
-
             pc.onicecandidate = function(event) {
                 if (event.candidate) {
                     gameRef.child('signaling').child(targetId).child(playerId).set({
@@ -1273,11 +1327,9 @@
                     });
                 }
             };
-
             gameRef.child('signaling').child(playerId).child(targetId).on('value', async function(snapshot) {
                 const data = snapshot.val();
                 if (!data) return;
-
                 try {
                     if (data.offer && !pc.currentRemoteDescription) {
                         await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
@@ -1298,7 +1350,6 @@
                     }
                 } catch (e) { console.error('P2P error:', e); }
             });
-
             if (isHost && playerId < targetId) {
                 setTimeout(async function() {
                     try {
@@ -1334,30 +1385,40 @@
         function handlePeerMessage(data, fromId) {
             switch (data.type) {
                 case 'move_army':
-                    const fromCity = gameState.cities.find(c => c.id === data.fromCityId);
-                    const toCity = gameState.cities.find(c => c.id === data.toCityId);
-                    if (fromCity && toCity) {
-                        fromCity.army -= data.units;
-                        updateCity(fromCity);
+                    const fromProv = gameState.provinces.find(p => p.id === data.fromProvinceId);
+                    const toProv = gameState.provinces.find(p => p.id === data.toProvinceId);
+                    if (fromProv && toProv) {
+                        fromProv.army -= data.units;
+                        updateProvince(fromProv);
                         const army = {
                             id: `p2p_${Date.now()}`,
                             playerId: data.playerId,
-                            fromCityId: data.fromCityId,
-                            toCityId: data.toCityId,
+                            fromProvinceId: data.fromProvinceId,
+                            toProvinceId: data.toProvinceId,
                             units: data.units,
-                            startX: fromCity.x,
-                            startY: fromCity.y,
-                            targetX: toCity.x,
-                            targetY: toCity.y,
+                            startX: fromProv.x,
+                            startY: fromProv.y,
+                            targetX: toProv.x,
+                            targetY: toProv.y,
                             progress: 0,
                             startTime: Date.now(),
                         };
                         gameState.movingArmies.push(army);
                         gameRef.child('movingArmies').child(army.id).set(army);
+                        needsRender = true;
                     }
                     break;
                 case 'attack':
-                    resolveBattle(data.cityId, data.attackerId, data.units);
+                    resolveBattle(data.provinceId, data.attackerId, data.units);
+                    break;
+                case 'declare_war':
+                    declareWar(data.fromId, data.toId);
+                    break;
+                case 'make_alliance':
+                    makeAlliance(data.fromId, data.toId);
+                    break;
+                case 'peace':
+                    makePeace(data.fromId, data.toId);
                     break;
             }
         }
@@ -1373,21 +1434,84 @@
             });
         }
 
+        // ==================== NGOẠI GIAO ====================
+        function declareWar(fromId, toId) {
+            if (!gameRef) return;
+            const existingWar = gameState.wars.find(w =>
+                (w.fromId === fromId && w.toId === toId) ||
+                (w.fromId === toId && w.toId === fromId)
+            );
+            if (existingWar) return;
+            const war = { id: `war_${Date.now()}`, fromId: fromId, toId: toId, startTime: Date.now(), status: 'active' };
+            gameState.wars.push(war);
+            gameRef.child('wars').child(war.id).set(war);
+            if (gameState.diplomacy[fromId] && gameState.diplomacy[fromId][toId]) {
+                gameState.diplomacy[fromId][toId].war = true;
+                gameState.diplomacy[fromId][toId].relation = Math.max(0, gameState.diplomacy[fromId][toId].relation - 50);
+                gameRef.child('diplomacy').set(gameState.diplomacy);
+            }
+            broadcastToPeers({ type: 'declare_war', fromId: fromId, toId: toId });
+            const fromName = nationsData.find(n => n.id === fromId)?.name || 'Ai đó';
+            const toName = nationsData.find(n => n.id === toId)?.name || 'Ai đó';
+            alert(`⚔️ ${fromName} đã tuyên chiến với ${toName}!`);
+        }
+
+        function makeAlliance(fromId, toId) {
+            if (!gameRef) return;
+            const existingAlliance = gameState.alliances.find(a =>
+                (a.fromId === fromId && a.toId === toId) ||
+                (a.fromId === toId && a.toId === fromId)
+            );
+            if (existingAlliance) return;
+            const alliance = { id: `alliance_${Date.now()}`, fromId: fromId, toId: toId, startTime: Date.now(),
+                status: 'active' };
+            gameState.alliances.push(alliance);
+            gameRef.child('alliances').child(alliance.id).set(alliance);
+            if (gameState.diplomacy[fromId] && gameState.diplomacy[fromId][toId]) {
+                gameState.diplomacy[fromId][toId].alliance = true;
+                gameState.diplomacy[fromId][toId].relation = Math.min(100, gameState.diplomacy[fromId][toId].relation + 40);
+                gameRef.child('diplomacy').set(gameState.diplomacy);
+            }
+            broadcastToPeers({ type: 'make_alliance', fromId: fromId, toId: toId });
+            const fromName = nationsData.find(n => n.id === fromId)?.name || 'Ai đó';
+            const toName = nationsData.find(n => n.id === toId)?.name || 'Ai đó';
+            alert(`🤝 ${fromName} và ${toName} đã thành lập liên minh!`);
+        }
+
+        function makePeace(fromId, toId) {
+            if (!gameRef) return;
+            const warIndex = gameState.wars.findIndex(w =>
+                (w.fromId === fromId && w.toId === toId) ||
+                (w.fromId === toId && w.toId === fromId)
+            );
+            if (warIndex !== -1) {
+                const war = gameState.wars[warIndex];
+                gameRef.child('wars').child(war.id).remove();
+                gameState.wars.splice(warIndex, 1);
+            }
+            if (gameState.diplomacy[fromId] && gameState.diplomacy[fromId][toId]) {
+                gameState.diplomacy[fromId][toId].war = false;
+                gameState.diplomacy[fromId][toId].relation = Math.min(80, gameState.diplomacy[fromId][toId].relation + 30);
+                gameRef.child('diplomacy').set(gameState.diplomacy);
+            }
+            broadcastToPeers({ type: 'peace', fromId: fromId, toId: toId });
+            const fromName = nationsData.find(n => n.id === fromId)?.name || 'Ai đó';
+            const toName = nationsData.find(n => n.id === toId)?.name || 'Ai đó';
+            alert(`🕊️ ${fromName} và ${toName} đã ký hòa bình!`);
+        }
+
         // ==================== XÂY DỰNG ====================
-        function buildBuilding(cityId, buildingType) {
+        function buildBuilding(provinceId, buildingType) {
             if (!playerId) return;
             const player = gameState.players[playerId];
             if (!player) return;
-            const city = gameState.cities.find(c => c.id === cityId);
-            if (!city || city.owner !== playerId) return;
-
+            const province = gameState.provinces.find(p => p.id === provinceId);
+            if (!province || province.owner !== playerId) return;
             const building = BUILDINGS[buildingType];
             if (!building) return;
-
             let goldCost = building.cost;
             let woodCost = Math.floor(building.cost * 0.3);
             let stoneCost = Math.floor(building.cost * 0.2);
-
             if (player.technology && player.technology.science) {
                 const discount = player.technology.science * 0.05;
                 goldCost *= (1 - discount);
@@ -1397,21 +1521,15 @@
             goldCost = Math.floor(goldCost);
             woodCost = Math.floor(woodCost);
             stoneCost = Math.floor(stoneCost);
-
-            if (player.gold < goldCost || player.wood < woodCost || player.stone < stoneCost) {
+            if (player.gold < goldCost || province.wood < woodCost || province.stone < stoneCost) {
                 alert(`❌ Không đủ tài nguyên!\n💰 Cần ${goldCost} vàng\n🪵 Cần ${woodCost} gỗ\n🪨 Cần ${stoneCost} đá`);
                 return;
             }
-
             player.gold -= goldCost;
-            player.wood -= woodCost;
-            player.stone -= stoneCost;
-            gameRef.child('players').child(playerId).update({
-                gold: player.gold,
-                wood: player.wood,
-                stone: player.stone,
-            });
-
+            province.wood -= woodCost;
+            province.stone -= stoneCost;
+            gameRef.child('players').child(playerId).update({ gold: player.gold });
+            updateProvince(province);
             const newBuilding = {
                 id: `build_${Date.now()}`,
                 type: buildingType,
@@ -1421,235 +1539,246 @@
                 level: 1,
                 category: building.category,
             };
-            if (!city.buildings) city.buildings = [];
-            city.buildings.push(newBuilding);
-            updateCity(city);
-
-            applyBuildingEffect(city, buildingType);
-
-            alert(`✅ Đã xây ${building.name} thành công!`);
-            render();
+            if (!province.buildings) province.buildings = [];
+            province.buildings.push(newBuilding);
+            updateProvince(province);
+            applyBuildingEffect(province, buildingType);
+            alert(`✅ Đã xây ${building.name} thành công tại ${province.name}!`);
+            needsRender = true;
             updateUI();
         }
 
-        function applyBuildingEffect(city, buildingType) {
+        function applyBuildingEffect(province, buildingType) {
             switch (buildingType) {
                 case 'barracks':
-                    city.army += 10;
+                    province.army += 8;
                     break;
                 case 'hospital':
-                    city.morale = Math.min(100, city.morale + 10);
+                    province.morale = Math.min(100, province.morale + 10);
                     break;
                 case 'fortress':
-                    city.defense *= 1.5;
+                    province.defense *= 1.5;
                     break;
                 case 'wall':
-                    city.defense *= 1.3;
+                    province.defense *= 1.3;
                     break;
                 case 'palace':
-                    city.defense *= 1.2;
-                    city.morale = Math.min(100, city.morale + 15);
+                    province.defense *= 1.2;
+                    province.morale = Math.min(100, province.morale + 15);
                     break;
                 case 'temple':
-                    city.morale = Math.min(100, city.morale + 20);
+                    province.morale = Math.min(100, province.morale + 20);
+                    break;
+                case 'farm':
+                    province.income += 5;
+                    break;
+                case 'market':
+                    province.trade += 8;
+                    break;
+                case 'mine':
+                    province.income += 8;
+                    break;
+                case 'port':
+                    province.trade += 12;
                     break;
                 default:
                     break;
             }
-            updateCity(city);
+            updateProvince(province);
         }
 
-        function upgradeBuilding(cityId, buildingIndex) {
+        function upgradeBuilding(provinceId, buildingIndex) {
             if (!playerId) return;
             const player = gameState.players[playerId];
             if (!player) return;
-            const city = gameState.cities.find(c => c.id === cityId);
-            if (!city || city.owner !== playerId) return;
-
-            const building = city.buildings[buildingIndex];
+            const province = gameState.provinces.find(p => p.id === provinceId);
+            if (!province || province.owner !== playerId) return;
+            const building = province.buildings[buildingIndex];
             if (!building) return;
             const buildingData = BUILDINGS[building.type];
             if (!buildingData) return;
-
             if (building.level >= buildingData.maxLevel) {
                 alert('❌ Công trình đã đạt cấp tối đa!');
                 return;
             }
-
             const cost = buildingData.upgradeCost * building.level;
             if (player.gold < cost) {
                 alert(`❌ Không đủ vàng! Cần ${cost}`);
                 return;
             }
-
             player.gold -= cost;
             building.level += 1;
             gameRef.child('players').child(playerId).update({ gold: player.gold });
-            updateCity(city);
-
+            updateProvince(province);
             alert(`✅ Đã nâng cấp ${buildingData.name} lên cấp ${building.level}!`);
-            render();
+            needsRender = true;
             updateUI();
         }
 
         // ==================== TUYỂN QUÂN ====================
-        function recruitArmy(cityId) {
+        function recruitArmy(provinceId) {
             if (!playerId) return;
             const player = gameState.players[playerId];
             if (!player) return;
-            const city = gameState.cities.find(c => c.id === cityId);
-            if (!city || city.owner !== playerId) return;
-
+            const province = gameState.provinces.find(p => p.id === provinceId);
+            if (!province || province.owner !== playerId) return;
             let cost = 20;
             if (player.technology && player.technology.military) {
                 cost -= player.technology.military * 1;
             }
             cost = Math.max(10, Math.floor(cost));
-
             if (player.gold < cost) {
                 alert(`❌ Không đủ vàng! Cần ${cost}`);
                 return;
             }
-
             player.gold -= cost;
-            city.army += 5;
+            province.army += 5;
             gameRef.child('players').child(playerId).update({ gold: player.gold });
-            updateCity(city);
-            alert(`✅ Tuyển được 5 quân tại ${city.name}!`);
+            updateProvince(province);
+            alert(`✅ Tuyển được 5 quân tại ${province.name}!`);
+            needsRender = true;
             updateUI();
-            render();
         }
 
         // ==================== XÂM CHIẾM ====================
-        function invadeCity(fromCityId, toCityId, units) {
+        function invadeProvince(fromProvinceId, toProvinceId, units) {
             if (!playerId) return;
             const player = gameState.players[playerId];
             if (!player) return;
-
-            const fromCity = gameState.cities.find(c => c.id === fromCityId);
-            const toCity = gameState.cities.find(c => c.id === toCityId);
-
-            if (!fromCity || !toCity) return;
-            if (fromCity.owner !== playerId) {
-                alert('❌ Không phải thành phố của bạn!');
+            const fromProv = gameState.provinces.find(p => p.id === fromProvinceId);
+            const toProv = gameState.provinces.find(p => p.id === toProvinceId);
+            if (!fromProv || !toProv) return;
+            if (fromProv.owner !== playerId) {
+                alert('❌ Không phải tỉnh của bạn!');
                 return;
             }
-            if (fromCity.army < units) {
-                alert(`❌ Không đủ quân! (Có ${Math.floor(fromCity.army)})`);
+            if (fromProv.army < units) {
+                alert(`❌ Không đủ quân! (Có ${Math.floor(fromProv.army)})`);
                 return;
             }
-
-            fromCity.army -= units;
-            updateCity(fromCity);
-
+            const targetPlayer = gameState.players[toProv.owner];
+            if (targetPlayer) {
+                const isAlliance = gameState.alliances.some(a =>
+                    (a.fromId === playerId && a.toId === targetPlayer.id) ||
+                    (a.fromId === targetPlayer.id && a.toId === playerId)
+                );
+                if (isAlliance) {
+                    if (!confirm(`⚠️ ${targetPlayer.name} là đồng minh của bạn! Bạn có chắc muốn tấn công?`)) {
+                        return;
+                    }
+                }
+            }
+            fromProv.army -= units;
+            updateProvince(fromProv);
             broadcastToPeers({
                 type: 'move_army',
                 playerId: playerId,
-                fromCityId: fromCityId,
-                toCityId: toCityId,
+                fromProvinceId: fromProvinceId,
+                toProvinceId: toProvinceId,
                 units: units,
             });
-
             const armyId = `army_${Date.now()}`;
             const army = {
                 id: armyId,
                 playerId: playerId,
                 playerName: player.name,
-                fromCityId: fromCityId,
-                toCityId: toCityId,
+                fromProvinceId: fromProvinceId,
+                toProvinceId: toProvinceId,
                 units: units,
-                startX: fromCity.x,
-                startY: fromCity.y,
-                targetX: toCity.x,
-                targetY: toCity.y,
+                startX: fromProv.x,
+                startY: fromProv.y,
+                targetX: toProv.x,
+                targetY: toProv.y,
                 progress: 0,
                 startTime: Date.now(),
             };
             gameRef.child('movingArmies').child(armyId).set(army);
-
             setTimeout(() => {
-                resolveBattle(toCityId, playerId, units);
+                resolveBattle(toProvinceId, playerId, units);
                 gameRef.child('movingArmies').child(armyId).remove();
+                needsRender = true;
             }, 3000);
         }
 
-        function resolveBattle(cityId, attackerId, attackPower) {
-            const city = gameState.cities.find(c => c.id === cityId);
-            if (!city) return;
-
-            const defenderId = city.owner;
+        function resolveBattle(provinceId, attackerId, attackPower) {
+            const province = gameState.provinces.find(p => p.id === provinceId);
+            if (!province) return;
+            const defenderId = province.owner;
             const attacker = gameState.players[attackerId];
             const defender = defenderId ? gameState.players[defenderId] : null;
-
             let attackStrength = attackPower;
             if (attacker && attacker.technology) {
                 const militaryLevel = attacker.technology.military || 0;
                 attackStrength *= (1 + militaryLevel * 0.1);
             }
-
-            let defenseStrength = city.army + (city.defense || 10) * 0.5;
+            let defenseStrength = province.army + (province.defense || 10) * 0.5;
             if (defender && defender.technology) {
                 const defenseLevel = defender.technology.defense || 0;
                 defenseStrength *= (1 + defenseLevel * 0.1);
             }
-
-            if (city.morale < 50) defenseStrength *= 0.7;
-            else if (city.morale > 80) defenseStrength *= 1.2;
-
-            if (city.buildings) {
-                city.buildings.forEach(b => {
+            if (province.morale < 50) defenseStrength *= 0.7;
+            else if (province.morale > 80) defenseStrength *= 1.2;
+            if (province.buildings) {
+                province.buildings.forEach(b => {
                     if (b.type === 'wall') defenseStrength *= 1.3;
                     if (b.type === 'fortress') defenseStrength *= 1.5;
                 });
             }
-
             if (attackStrength > defenseStrength) {
-                const oldOwner = city.owner;
-                city.owner = attackerId;
-                city.army = Math.floor(attackStrength - defenseStrength * 0.5);
-                city.gold = Math.floor(city.gold * 0.6);
-                city.morale = Math.max(30, city.morale - 20);
-                updateCity(city);
-
+                const oldOwner = province.owner;
+                province.owner = attackerId;
+                province.army = Math.floor(attackStrength - defenseStrength * 0.5);
+                province.gold = Math.floor(province.gold * 0.6);
+                province.morale = Math.max(30, province.morale - 20);
+                updateProvince(province);
                 if (attacker) {
-                    if (!attacker.cities.includes(city.id)) {
-                        attacker.cities.push(city.id);
+                    if (!attacker.provinces.includes(province.id)) {
+                        attacker.provinces.push(province.id);
                     }
-                    attacker.score = (attacker.score || 0) + 20;
+                    attacker.score = (attacker.score || 0) + 25;
                     gameRef.child('players').child(attackerId).update({
-                        cities: attacker.cities,
+                        provinces: attacker.provinces,
                         score: attacker.score,
                     });
                 }
-
                 if (defender) {
-                    defender.cities = defender.cities.filter(id => id !== city.id);
-                    if (defender.cities.length === 0) {
+                    defender.provinces = defender.provinces.filter(id => id !== province.id);
+                    if (defender.provinces.length === 0) {
                         defender.isAlive = false;
                     }
                     gameRef.child('players').child(defenderId).update({
-                        cities: defender.cities,
+                        provinces: defender.provinces,
                         isAlive: defender.isAlive,
                     });
                 }
-
                 broadcastToPeers({
-                    type: 'city_captured',
-                    cityId: city.id,
+                    type: 'province_captured',
+                    provinceId: province.id,
                     newOwner: attackerId,
-                    army: city.army,
+                    army: province.army,
                 });
-
+                const msg = {
+                    text: `🏰 ${attacker?.name || 'Ai đó'} đã chiếm ${province.name}!`,
+                    time: Date.now(),
+                    type: 'system',
+                };
+                gameRef.child('messages').push(msg);
             } else {
-                city.army = Math.floor(defenseStrength - attackStrength * 0.3);
-                city.morale = Math.max(30, city.morale - 10);
-                updateCity(city);
-
+                province.army = Math.floor(defenseStrength - attackStrength * 0.3);
+                province.morale = Math.max(30, province.morale - 10);
+                updateProvince(province);
                 if (attacker) {
                     attacker.gold -= 20;
                     gameRef.child('players').child(attackerId).update({ gold: attacker.gold });
                 }
+                const msg = {
+                    text: `💀 ${attacker?.name || 'Ai đó'} thất bại khi tấn công ${province.name}!`,
+                    time: Date.now(),
+                    type: 'system',
+                };
+                gameRef.child('messages').push(msg);
             }
+            needsRender = true;
         }
 
         // ==================== CHÍNH TRỊ & CÔNG NGHỆ ====================
@@ -1663,14 +1792,12 @@
                 alert(`❌ Không đủ vàng! Cần ${policy.cost}`);
                 return;
             }
-
             player.gold -= policy.cost;
             player.policy = policyType;
             gameRef.child('players').child(playerId).update({
                 gold: player.gold,
                 policy: policyType,
             });
-
             alert(`✅ Đã áp dụng chính sách ${policy.name}!`);
             updateUI();
         }
@@ -1685,13 +1812,11 @@
                 alert('❌ Công nghệ đã đạt cấp tối đa!');
                 return;
             }
-
             const cost = tech.cost * (tech.level + 1);
             if (player.gold < cost) {
                 alert(`❌ Không đủ vàng! Cần ${cost}`);
                 return;
             }
-
             player.gold -= cost;
             tech.level += 1;
             if (!player.technology) player.technology = {};
@@ -1700,7 +1825,6 @@
                 gold: player.gold,
                 technology: player.technology,
             });
-
             alert(`✅ Đã nâng cấp ${tech.name} lên cấp ${tech.level}!`);
             updateUI();
         }
@@ -1709,89 +1833,76 @@
         function startGameLoop() {
             setInterval(function() {
                 if (!playerId || !gameState.players[playerId]) return;
-
                 gameState.gameTime += 0.1;
                 const player = gameState.players[playerId];
                 if (!player || !player.isAlive) return;
-
-                let income = player.cities.length * 5;
-                let woodIncome = player.cities.length * 2;
-                let stoneIncome = player.cities.length * 1;
-
-                player.cities.forEach(cityId => {
-                    const city = gameState.cities.find(c => c.id === cityId);
-                    if (city && city.buildings) {
-                        city.buildings.forEach(building => {
-                            if (building.type === 'farm') { income += 8;
-                                woodIncome += 2; }
-                            if (building.type === 'market') income += 15;
-                            if (building.type === 'port') income += 20;
-                            if (building.type === 'mine') income += 12;
-                            if (building.type === 'sawmill') woodIncome += 10;
-                            if (building.type === 'quarry') stoneIncome += 8;
-                            if (building.type === 'bank') income += 30;
-                        });
-                    }
-                });
-
-                if (player.policy) {
-                    if (player.policy === 'democracy') income *= 1.2;
-                    if (player.policy === 'capitalism') income *= 1.5;
-                    if (player.policy === 'communism') { income *= 1.4;
-                        woodIncome *= 1.3;
-                        stoneIncome *= 1.3; }
-                    if (player.policy === 'militarism') income *= 0.7;
-                    if (player.policy === 'trade_union') income *= 1.6;
-                }
-
-                if (player.technology) {
-                    const agriLevel = player.technology.agriculture || 0;
-                    income += agriLevel * 3;
-                    const tradeLevel = player.technology.trade || 0;
-                    income *= (1 + tradeLevel * 0.05);
-                }
-
-                const incomePerTick = income / 10;
-                const woodPerTick = woodIncome / 10;
-                const stonePerTick = stoneIncome / 10;
-
-                player.gold = (player.gold || 0) + incomePerTick;
-                player.wood = (player.wood || 0) + woodPerTick;
-                player.stone = (player.stone || 0) + stonePerTick;
-
-                gameRef.child('players').child(playerId).update({
-                    gold: player.gold,
-                    wood: player.wood,
-                    stone: player.stone,
-                });
-
-                player.cities.forEach(cityId => {
-                    const city = gameState.cities.find(c => c.id === cityId);
-                    if (city) {
-                        let bonus = 0.02;
-                        if (city.buildings) {
-                            city.buildings.forEach(b => {
-                                if (b.type === 'barracks') bonus += 0.05;
-                                if (b.type === 'stable') bonus += 0.04;
-                                if (b.type === 'workshop') bonus += 0.03;
+                let totalIncome = 0;
+                let totalTrade = 0;
+                let totalArmy = 0;
+                player.provinces.forEach(provId => {
+                    const province = gameState.provinces.find(p => p.id === provId);
+                    if (province) {
+                        let income = 3 + (province.population / 2000);
+                        let trade = 2 + (province.population / 3000);
+                        if (province.buildings) {
+                            province.buildings.forEach(b => {
+                                if (b.type === 'farm') income += 3;
+                                if (b.type === 'market') trade += 5;
+                                if (b.type === 'mine') income += 4;
+                                if (b.type === 'port') trade += 8;
+                                if (b.type === 'bank') income += 10;
                             });
                         }
-                        if (city.morale < 50) bonus *= 0.5;
-                        if (city.morale > 80) bonus *= 1.3;
-
-                        city.army += bonus;
-                        if (city.morale < 70) city.morale += 0.02;
-                        updateCity(city);
+                        if (player.policy) {
+                            if (player.policy === 'capitalism') trade *= 1.5;
+                            if (player.policy === 'communism') income *= 1.4;
+                            if (player.policy === 'democracy') { income *= 1.2;
+                                trade *= 1.1; }
+                        }
+                        if (player.technology) {
+                            const agriLevel = player.technology.agriculture || 0;
+                            income += agriLevel * 2;
+                            const tradeLevel = player.technology.trade || 0;
+                            trade *= (1 + tradeLevel * 0.05);
+                        }
+                        totalIncome += income;
+                        totalTrade += trade;
+                        totalArmy += province.army;
+                        province.population += province.population * 0.001;
+                        if (province.morale < 70) province.morale += 0.05;
+                        if (province.morale > 100) province.morale = 100;
+                        updateProvince(province);
                     }
                 });
-
+                const totalGoldIncome = totalIncome + totalTrade * 0.5;
+                player.gold = (player.gold || 0) + totalGoldIncome / 10;
+                player.provinces.forEach(provId => {
+                    const province = gameState.provinces.find(p => p.id === provId);
+                    if (province) {
+                        let growth = 0.02;
+                        if (province.buildings) {
+                            province.buildings.forEach(b => {
+                                if (b.type === 'barracks') growth += 0.04;
+                                if (b.type === 'stable') growth += 0.03;
+                            });
+                        }
+                        if (province.morale < 50) growth *= 0.5;
+                        if (province.morale > 80) growth *= 1.3;
+                        province.army += growth;
+                        updateProvince(province);
+                    }
+                });
+                gameRef.child('players').child(playerId).update({ gold: player.gold });
                 updateUI();
-                render();
+                needsRender = true;
             }, 100);
         }
 
-        // ==================== VẼ ====================
+        // ==================== RENDER (Tối ưu - Không lag) ====================
         function render() {
+            if (!needsRender) return;
+            needsRender = false;
+
             updateCamera();
 
             ctx.save();
@@ -1802,45 +1913,31 @@
             ctx.translate(camera.x, camera.y);
             ctx.scale(camera.zoom, camera.zoom);
 
-            // Vẽ map SVG
-            const img = new Image();
-            img.src = 'map.svg';
-            img.onload = function() {
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                drawGameElements();
-                ctx.restore();
-            };
-            img.onerror = function() {
-                // Nếu không có map.svg, vẽ lưới nền
-                drawGrid();
-                drawGameElements();
-                ctx.restore();
-            };
+            // Vẽ map từ cache
+            if (mapImageLoaded && mapImage.complete && mapImage.naturalWidth > 0) {
+                ctx.drawImage(mapImage, 0, 0, canvas.width, canvas.height);
+            } else {
+                // Vẽ grid nếu chưa có map
+                ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+                ctx.lineWidth = 1;
+                const step = 50;
+                for (let x = 0; x < canvas.width; x += step) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, canvas.height);
+                    ctx.stroke();
+                }
+                for (let y = 0; y < canvas.height; y += step) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(canvas.width, y);
+                    ctx.stroke();
+                }
+            }
 
-            // Nếu image chưa load, vẫn vẽ elements
-            if (!img.complete) {
-                drawGrid();
-                drawGameElements();
-                ctx.restore();
-            }
-        }
-
-        function drawGrid() {
-            ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-            ctx.lineWidth = 1;
-            const step = 50;
-            for (let x = 0; x < canvas.width; x += step) {
-                ctx.beginPath();
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, canvas.height);
-                ctx.stroke();
-            }
-            for (let y = 0; y < canvas.height; y += step) {
-                ctx.beginPath();
-                ctx.moveTo(0, y);
-                ctx.lineTo(canvas.width, y);
-                ctx.stroke();
-            }
+            // Vẽ game elements
+            drawGameElements();
+            ctx.restore();
         }
 
         function drawGameElements() {
@@ -1850,7 +1947,6 @@
                 const x = army.startX + (army.targetX - army.startX) * progress;
                 const y = army.startY + (army.targetY - army.startY) * progress;
                 const color = gameState.players[army.playerId]?.color || '#fff';
-
                 ctx.shadowColor = color;
                 ctx.shadowBlur = 20;
                 ctx.beginPath();
@@ -1861,7 +1957,6 @@
                 ctx.strokeStyle = '#ffd700';
                 ctx.lineWidth = 3;
                 ctx.stroke();
-
                 ctx.fillStyle = '#fff';
                 ctx.font = 'bold 13px Arial';
                 ctx.textAlign = 'center';
@@ -1871,35 +1966,35 @@
                 ctx.fillText(army.playerName || '', x, y - 22);
             });
 
-            // Cities
-            gameState.cities.forEach(city => {
-                const isMine = city.owner === playerId;
-                const isSelected = selectedCity && selectedCity.id === city.id;
+            // Provinces
+            gameState.provinces.forEach(prov => {
+                const isMine = prov.owner === playerId;
+                const isSelected = selectedProvince && selectedProvince.id === prov.id;
 
                 let color = '#666';
-                if (city.owner && gameState.players[city.owner]) {
-                    color = gameState.players[city.owner].color;
-                } else if (city.ownerColor) {
-                    color = city.ownerColor;
+                if (prov.owner && gameState.players[prov.owner]) {
+                    color = gameState.players[prov.owner].color;
+                } else if (prov.ownerColor) {
+                    color = prov.ownerColor;
                 }
 
-                const radius = isMine ? 20 : 14;
+                const radius = isMine ? 22 : 16;
 
                 ctx.shadowColor = color;
-                ctx.shadowBlur = isMine ? 25 : 10;
+                ctx.shadowBlur = isMine ? 30 : 15;
                 ctx.beginPath();
-                ctx.arc(city.x, city.y, radius, 0, Math.PI * 2);
+                ctx.arc(prov.x, prov.y, radius, 0, Math.PI * 2);
                 ctx.fillStyle = color;
                 ctx.fill();
                 ctx.shadowBlur = 0;
 
-                ctx.strokeStyle = isMine ? '#ffd700' : isSelected ? '#4ade80' : '#fff';
+                ctx.strokeStyle = isMine ? '#ffd700' : isSelected ? '#4ade80' : 'rgba(255,255,255,0.3)';
                 ctx.lineWidth = isMine ? 3 : (isSelected ? 4 : 1.5);
                 ctx.stroke();
 
-                if (city.isCapital) {
+                if (prov.isCapital) {
                     ctx.beginPath();
-                    ctx.arc(city.x, city.y, radius + 6, 0, Math.PI * 2);
+                    ctx.arc(prov.x, prov.y, radius + 6, 0, Math.PI * 2);
                     ctx.strokeStyle = '#ffd700';
                     ctx.lineWidth = 2;
                     ctx.setLineDash([4, 4]);
@@ -1907,58 +2002,57 @@
                     ctx.setLineDash([]);
                 }
 
-                if (city.buildings && city.buildings.length > 0) {
-                    let yOffset = -radius - 30;
-                    city.buildings.slice(0, 4).forEach(building => {
+                if (prov.buildings && prov.buildings.length > 0) {
+                    let yOffset = -radius - 32;
+                    prov.buildings.slice(0, 4).forEach(building => {
                         const bData = BUILDINGS[building.type];
                         if (bData) {
                             ctx.font = '14px Arial';
                             ctx.textAlign = 'center';
-                            ctx.fillText(bData.icon, city.x, city.y + yOffset);
+                            ctx.fillText(bData.icon, prov.x, prov.y + yOffset);
                             yOffset -= 18;
                         }
                     });
-                    if (city.buildings.length > 4) {
+                    if (prov.buildings.length > 4) {
                         ctx.fillStyle = '#4ade80';
                         ctx.font = '10px Arial';
-                        ctx.fillText(`+${city.buildings.length - 4}`, city.x, city.y + yOffset + 5);
+                        ctx.fillText(`+${prov.buildings.length - 4}`, prov.x, prov.y + yOffset + 5);
                     }
                 }
 
                 ctx.fillStyle = '#fff';
-                ctx.font = 'bold 12px Arial';
+                ctx.font = 'bold 11px Arial';
                 ctx.textAlign = 'center';
-                ctx.fillText(city.name, city.x, city.y - radius - 12);
+                ctx.fillText(prov.name, prov.x, prov.y - radius - 14);
 
                 ctx.fillStyle = '#ff6b6b';
                 ctx.font = 'bold 14px Arial';
-                ctx.fillText(`⚔️${Math.floor(city.army)}`, city.x, city.y + radius + 24);
+                ctx.fillText(`⚔️${Math.floor(prov.army)}`, prov.x, prov.y + radius + 24);
 
                 ctx.fillStyle = '#ffd700';
-                ctx.font = '11px Arial';
-                ctx.fillText(`💰${Math.floor(city.gold || 0)}`, city.x, city.y + radius + 40);
+                ctx.font = '10px Arial';
+                ctx.fillText(`💰${Math.floor(prov.gold || 0)}`, prov.x, prov.y + radius + 40);
 
-                // Morale bar
-                const moraleWidth = 30;
-                const moraleX = city.x - moraleWidth / 2;
-                const moraleY = city.y + radius + 52;
+                const moraleWidth = 34;
+                const moraleX = prov.x - moraleWidth / 2;
+                const moraleY = prov.y + radius + 52;
                 ctx.fillStyle = 'rgba(0,0,0,0.5)';
                 ctx.fillRect(moraleX, moraleY, moraleWidth, 4);
-                const moraleColor = city.morale > 60 ? '#4ade80' : city.morale > 30 ? '#fbbf24' : '#e94560';
+                const moraleColor = prov.morale > 60 ? '#4ade80' : prov.morale > 30 ? '#fbbf24' : '#e94560';
                 ctx.fillStyle = moraleColor;
-                ctx.fillRect(moraleX, moraleY, moraleWidth * (city.morale / 100), 4);
+                ctx.fillRect(moraleX, moraleY, moraleWidth * (prov.morale / 100), 4);
 
-                const ownerName = city.owner && gameState.players[city.owner] ? gameState.players[city.owner].name :
-                    city.ownerName;
+                const ownerName = prov.owner && gameState.players[prov.owner] ? gameState.players[prov.owner].name :
+                    prov.ownerName;
                 if (ownerName) {
                     ctx.fillStyle = '#aaa';
                     ctx.font = '8px Arial';
-                    ctx.fillText(ownerName, city.x, city.y + radius + 62);
+                    ctx.fillText(ownerName, prov.x, prov.y + radius + 64);
                 }
 
                 if (isSelected && isSelectingUnit) {
                     ctx.beginPath();
-                    ctx.arc(city.x, city.y, radius + 12, 0, Math.PI * 2);
+                    ctx.arc(prov.x, prov.y, radius + 14, 0, Math.PI * 2);
                     ctx.strokeStyle = '#4ade80';
                     ctx.lineWidth = 3;
                     ctx.setLineDash([6, 6]);
@@ -1967,35 +2061,35 @@
                 }
             });
 
-            // UI overlay (vẽ sau cùng để không bị zoom)
+            // UI overlay (vẽ sau cùng, không bị zoom)
             ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.fillStyle = 'rgba(0,0,0,0.8)';
-            ctx.fillRect(10, 10, 280, 105);
+            ctx.fillStyle = 'rgba(0,0,0,0.85)';
+            ctx.fillRect(10, 10, 300, 120);
             ctx.fillStyle = '#fff';
             ctx.font = '12px Arial';
             ctx.textAlign = 'left';
-            const myCities = gameState.cities.filter(c => c.owner === playerId);
+            const myProvinces = gameState.provinces.filter(p => p.owner === playerId);
             const player = gameState.players[playerId];
             ctx.fillText(`⏱️ ${Math.floor(gameState.gameTime)}s  |  👥 ${Object.keys(gameState.players).length} người`,
-                20, 30);
-            ctx.fillText(`🏙️ ${myCities.length} thành phố  |  ⚔️ ${Math.floor(myCities.reduce((sum, c) => sum + c.army, 0))} quân`,
-                20, 50);
+                20, 32);
+            ctx.fillText(`🏙️ ${myProvinces.length} tỉnh  |  ⚔️ ${Math.floor(myProvinces.reduce((sum, p) => sum + p.army, 0))} quân`,
+                20, 52);
             ctx.fillText(
-                `💰 ${Math.floor(player?.gold || 0)} vàng  |  🪵 ${Math.floor(player?.wood || 0)} gỗ  |  🪨 ${Math.floor(player?.stone || 0)} đá`,
-                20, 70);
+                `💰 ${Math.floor(player?.gold || 0)} vàng  |  📜 ${player?.policy ? POLICIES[player.policy]?.name : 'Chưa có'}`,
+                20, 72);
             ctx.fillStyle = '#aaa';
             ctx.font = '10px Arial';
             ctx.fillText(
-                `📜 ${player?.policy ? POLICIES[player.policy]?.name : 'Chưa có'}  |  🔬 ${player?.technology ? Object.keys(player.technology).length : 0} công nghệ`,
-                20, 90);
+                `🔬 ${player?.technology ? Object.keys(player.technology).length : 0} công nghệ  |  ⚔️ ${gameState.wars ? gameState.wars.length : 0} cuộc chiến`,
+                20, 92);
 
             ctx.fillStyle = 'rgba(0,0,0,0.7)';
-            ctx.fillRect(10, canvas.height - 35, 520, 28);
+            ctx.fillRect(10, canvas.height - 35, 600, 28);
             ctx.fillStyle = '#aaa';
             ctx.font = '11px Arial';
             ctx.textAlign = 'left';
             ctx.fillText(
-                '🖱️ Click: Chọn | Click phải: Xây dựng | Click thành phố khác: Tấn công | Click đất trống: Bỏ chọn',
+                '🖱️ Click: Chọn | Click phải: Xây dựng | Click tỉnh khác: Tấn công | Kéo: Di chuyển bản đồ',
                 20, canvas.height - 14);
         }
 
@@ -2003,22 +2097,17 @@
         function updateUI() {
             if (!playerId || !gameState.players[playerId]) return;
             const player = gameState.players[playerId];
-
             document.getElementById('player-name-display').textContent = `👑 ${player.name} (${player.nationName || ''})`;
             document.getElementById('gold-display').textContent = Math.floor(player.gold || 0);
-            document.getElementById('wood-display').textContent = Math.floor(player.wood || 0);
-            document.getElementById('stone-display').textContent = Math.floor(player.stone || 0);
-            document.getElementById('city-count').textContent = player.cities?.length || 0;
-
+            document.getElementById('city-count').textContent = player.provinces?.length || 0;
             let totalArmy = 0;
-            if (player.cities) {
-                player.cities.forEach(cityId => {
-                    const city = gameState.cities.find(c => c.id === cityId);
-                    if (city) totalArmy += city.army;
+            if (player.provinces) {
+                player.provinces.forEach(provId => {
+                    const prov = gameState.provinces.find(p => p.id === provId);
+                    if (prov) totalArmy += prov.army;
                 });
             }
             document.getElementById('army-display').textContent = Math.floor(totalArmy);
-
             const policyDisplay = document.getElementById('current-policy');
             if (player.policy) {
                 const policy = POLICIES[player.policy];
@@ -2026,18 +2115,18 @@
             } else {
                 policyDisplay.textContent = '📜 Chưa có';
             }
+            const techDisplay = document.getElementById('tech-display');
+            techDisplay.textContent = player.technology ? Object.keys(player.technology).length : 0;
         }
 
         function updatePlayerList() {
             const list = document.getElementById('player-list');
             if (!list) return;
-
             list.innerHTML =
                 '<div style="color:#888;font-size:10px;text-align:center;margin-bottom:3px;">👥 Người chơi</div>';
-
             const sorted = Object.values(gameState.players).sort((a, b) => (b.score || 0) - (a.score || 0));
             sorted.forEach(player => {
-                const cityCount = gameState.cities.filter(c => c.owner === player.id).length;
+                const provCount = gameState.provinces.filter(p => p.owner === player.id).length;
                 const isMe = player.id === playerId;
                 const isConnected = !!dataChannels[player.id];
                 const div = document.createElement('div');
@@ -2050,7 +2139,7 @@
                             <strong>${player.name}</strong> ${isMe ? '⭐' : ''}
                             ${player.isHost ? '👑' : ''}
                             <span style="font-size:9px;color:#888;">
-                                🏙️${cityCount} 💰${Math.floor(player.gold || 0)}
+                                🏙️${provCount} 💰${Math.floor(player.gold || 0)}
                                 ${player.score ? `⭐${player.score}` : ''}
                             </span>
                         `;
@@ -2076,6 +2165,7 @@
                     camera.x = dragStartCamX + dx;
                     camera.y = dragStartCamY + dy;
                     camera.isAnimating = false;
+                    needsRender = true;
                     render();
                 }
             });
@@ -2099,15 +2189,15 @@
 
             canvas.addEventListener('contextmenu', function(e) {
                 e.preventDefault();
-                if (!selectedCity) {
-                    alert('🏗️ Vui lòng chọn một thành phố trước!');
+                if (!selectedProvince) {
+                    alert('🏗️ Vui lòng chọn một tỉnh trước!');
                     return;
                 }
-                if (selectedCity.owner !== playerId) {
-                    alert('❌ Đây không phải thành phố của bạn!');
+                if (selectedProvince.owner !== playerId) {
+                    alert('❌ Đây không phải tỉnh của bạn!');
                     return;
                 }
-                showBuildMenu(selectedCity);
+                showBuildMenu(selectedProvince);
             });
 
             canvas.addEventListener('wheel', function(e) {
@@ -2116,8 +2206,18 @@
                 const newZoom = Math.max(0.3, Math.min(3, camera.zoom + delta));
                 camera.targetZoom = newZoom;
                 camera.isAnimating = true;
+                needsRender = true;
                 render();
             }, { passive: false });
+
+            // Render loop với requestAnimationFrame (chỉ vẽ khi cần)
+            function renderLoop() {
+                if (needsRender) {
+                    render();
+                }
+                requestAnimationFrame(renderLoop);
+            }
+            renderLoop();
         }
 
         function handleClick(e) {
@@ -2130,35 +2230,36 @@
             const mapX = (x - camera.x) / camera.zoom;
             const mapY = (y - camera.y) / camera.zoom;
 
-            let clickedCity = null;
-            for (let city of gameState.cities) {
-                const dx = mapX - city.x;
-                const dy = mapY - city.y;
-                if (Math.sqrt(dx * dx + dy * dy) < 30) {
-                    clickedCity = city;
+            let clickedProv = null;
+            for (let prov of gameState.provinces) {
+                const dx = mapX - prov.x;
+                const dy = mapY - prov.y;
+                if (Math.sqrt(dx * dx + dy * dy) < 35) {
+                    clickedProv = prov;
                     break;
                 }
             }
 
             if (isSelectingUnit) {
-                if (clickedCity) {
-                    if (clickedCity.owner === playerId) {
-                        if (clickedCity.id !== selectedCity?.id) {
+                if (clickedProv) {
+                    if (clickedProv.owner === playerId) {
+                        if (clickedProv.id !== selectedProvince?.id) {
                             const units = prompt(
-                                `⚔️ Nhập số quân từ ${selectedCity?.name} đến ${clickedCity.name}:`,
-                                Math.floor(selectedCity?.army / 2 || 5)
+                                `⚔️ Nhập số quân từ ${selectedProvince?.name} đến ${clickedProv.name}:`,
+                                Math.floor(selectedProvince?.army / 2 || 5)
                             );
                             if (units && !isNaN(units) && parseInt(units) > 0) {
-                                const fromCity = selectedCity;
-                                const toCity = clickedCity;
-                                if (fromCity && fromCity.army >= parseInt(units)) {
-                                    fromCity.army -= parseInt(units);
-                                    toCity.army += parseInt(units);
-                                    updateCity(fromCity);
-                                    updateCity(toCity);
+                                const fromProv = selectedProvince;
+                                const toProv = clickedProv;
+                                if (fromProv && fromProv.army >= parseInt(units)) {
+                                    fromProv.army -= parseInt(units);
+                                    toProv.army += parseInt(units);
+                                    updateProvince(fromProv);
+                                    updateProvince(toProv);
                                     alert(
-                                        `✅ Đã chuyển ${units} quân từ ${fromCity.name} đến ${toCity.name}`
+                                        `✅ Đã chuyển ${units} quân từ ${fromProv.name} đến ${toProv.name}`
                                     );
+                                    needsRender = true;
                                 } else {
                                     alert('❌ Không đủ quân!');
                                 }
@@ -2166,66 +2267,66 @@
                         }
                     } else {
                         const units = prompt(
-                            `⚔️ Nhập số quân tấn công ${clickedCity.name}:`,
-                            Math.floor(selectedCity?.army / 2 || 5)
+                            `⚔️ Nhập số quân tấn công ${clickedProv.name}:`,
+                            Math.floor(selectedProvince?.army / 2 || 5)
                         );
                         if (units && !isNaN(units) && parseInt(units) > 0) {
-                            invadeCity(selectedCity.id, clickedCity.id, parseInt(units));
+                            invadeProvince(selectedProvince.id, clickedProv.id, parseInt(units));
                         }
                     }
                     isSelectingUnit = false;
-                    selectedCity = null;
-                    render();
+                    selectedProvince = null;
+                    needsRender = true;
                     return;
                 } else {
                     isSelectingUnit = false;
-                    selectedCity = null;
-                    document.getElementById('info-content').innerHTML = `
-                                <p style="color:#888;">Đã hủy chọn quân</p>
-                            `;
-                    render();
+                    selectedProvince = null;
+                    document.getElementById('info-content').innerHTML =
+                    '<p style="color:#888;">Đã hủy chọn quân</p>';
+                    needsRender = true;
                     return;
                 }
             }
 
-            if (!clickedCity) {
-                selectedCity = null;
+            if (!clickedProv) {
+                selectedProvince = null;
                 document.getElementById('info-content').innerHTML = `
-                            <p style="color:#888;font-size:11px;">Click vào thành phố để quản lý</p>
+                            <p style="color:#888;font-size:11px;">Click vào tỉnh để quản lý</p>
                             <p style="color:#555;font-size:9px;margin-top:3px;">📌 Click phải để xây dựng</p>
-                            <p style="color:#555;font-size:9px;">🎯 Click thành phố của bạn → "Điều quân"</p>
+                            <p style="color:#555;font-size:9px;">🎯 Click tỉnh của bạn → "Điều quân"</p>
                         `;
-                render();
+                needsRender = true;
                 return;
             }
 
-            selectedCity = clickedCity;
-            showCityMenu(clickedCity);
-            render();
+            selectedProvince = clickedProv;
+            showProvinceMenu(clickedProv);
+            needsRender = true;
         }
 
-        // ==================== MENU ====================
-        function showCityMenu(city) {
-            const owner = city.owner ? gameState.players[city.owner] : null;
-            const isMine = city.owner === playerId;
+        // ==================== MENU PROVINCE ====================
+        function showProvinceMenu(province) {
+            const owner = province.owner ? gameState.players[province.owner] : null;
+            const isMine = province.owner === playerId;
             const player = gameState.players[playerId];
 
             let html = `
-                        <h4 style="color:#ffd700;font-size:13px;margin-bottom:4px;">🏙️ ${city.name}</h4>
-                        <p style="font-size:11px;"><strong>Quốc gia:</strong> ${owner ? owner.name : (city.ownerName || '🌿 Trống')}</p>
-                        <p style="font-size:11px;"><strong>Quân đội:</strong> ⚔️ ${Math.floor(city.army)}</p>
-                        <p style="font-size:11px;"><strong>Vàng:</strong> 💰 ${Math.floor(city.gold || 0)}</p>
-                        <p style="font-size:11px;"><strong>Gỗ:</strong> 🪵 ${Math.floor(city.wood || 0)}</p>
-                        <p style="font-size:11px;"><strong>Đá:</strong> 🪨 ${Math.floor(city.stone || 0)}</p>
-                        <p style="font-size:11px;"><strong>Phòng thủ:</strong> 🛡️ ${Math.floor(city.defense || 10)}</p>
-                        <p style="font-size:11px;"><strong>Tinh thần:</strong> ${city.morale > 60 ? '😊' : city.morale > 30 ? '😐' : '😰'} ${Math.floor(city.morale)}%</p>
-                        ${city.isCapital ? '<p style="color:#ffd700;font-size:11px;">⭐ Thủ đô</p>' : ''}
+                        <h4 style="color:#ffd700;font-size:13px;margin-bottom:4px;">🏙️ ${province.name}</h4>
+                        <p style="font-size:11px;"><strong>Quốc gia:</strong> ${owner ? owner.name : (province.ownerName || '🌿 Trống')}</p>
+                        <p style="font-size:11px;"><strong>Quân đội:</strong> ⚔️ ${Math.floor(province.army)}</p>
+                        <p style="font-size:11px;"><strong>Vàng:</strong> 💰 ${Math.floor(province.gold || 0)}</p>
+                        <p style="font-size:11px;"><strong>Gỗ:</strong> 🪵 ${Math.floor(province.wood || 0)}</p>
+                        <p style="font-size:11px;"><strong>Đá:</strong> 🪨 ${Math.floor(province.stone || 0)}</p>
+                        <p style="font-size:11px;"><strong>Phòng thủ:</strong> 🛡️ ${Math.floor(province.defense || 10)}</p>
+                        <p style="font-size:11px;"><strong>Dân số:</strong> 👨‍👩‍👧‍👦 ${Math.floor(province.population || 0)}</p>
+                        <p style="font-size:11px;"><strong>Tinh thần:</strong> ${province.morale > 60 ? '😊' : province.morale > 30 ? '😐' : '😰'} ${Math.floor(province.morale)}%</p>
+                        ${province.isCapital ? '<p style="color:#ffd700;font-size:11px;">⭐ Thủ đô</p>' : ''}
                     `;
 
-            if (city.buildings && city.buildings.length > 0) {
+            if (province.buildings && province.buildings.length > 0) {
                 html +=
                     '<hr style="border-color:#333;"><p style="color:#4ade80;font-size:11px;">🏗️ Công trình:</p><div style="display:flex;flex-wrap:wrap;gap:2px;max-height:70px;overflow-y:auto;">';
-                city.buildings.forEach((b, index) => {
+                province.buildings.forEach((b, index) => {
                     const bData = BUILDINGS[b.type];
                     if (bData) {
                         const isMaxLevel = b.level >= bData.maxLevel;
@@ -2234,7 +2335,7 @@
                                         ${bData.icon} ${bData.name} 
                                         <span style="color:#888;">Lv.${b.level}</span>
                                         ${isMine && !isMaxLevel ? `
-                                            <button onclick="upgradeBuilding(${city.id}, ${index})" style="
+                                            <button onclick="upgradeBuilding(${province.id}, ${index})" style="
                                                 background:#fbbf24;color:#1a1a2e;border:none;border-radius:2px;
                                                 cursor:pointer;font-size:7px;padding:1px 3px;margin-left:2px;
                                             ">↑</button>
@@ -2250,19 +2351,19 @@
                 html += `
                             <hr style="border-color:#333;">
                             <div style="display:flex;flex-direction:column;gap:3px;margin-top:4px;">
-                                <button onclick="selectUnit(selectedCity)" style="
+                                <button onclick="selectUnit(selectedProvince)" style="
                                     background:#4ade80;color:#1a1a2e;border:none;padding:5px;border-radius:4px;
                                     cursor:pointer;font-weight:bold;font-size:11px;
                                 ">
-                                    🎯 Điều quân (Click vào đất)
+                                    🎯 Điều quân (Click vào tỉnh khác)
                                 </button>
-                                <button onclick="showBuildMenu(selectedCity)" style="
+                                <button onclick="showBuildMenu(selectedProvince)" style="
                                     background:#60a5fa;color:#fff;border:none;padding:5px;border-radius:4px;
                                     cursor:pointer;font-size:11px;
                                 ">
                                     🏗️ Xây dựng (Click phải)
                                 </button>
-                                <button onclick="recruitArmy(${city.id})" style="
+                                <button onclick="recruitArmy(${province.id})" style="
                                     background:#fbbf24;color:#1a1a2e;border:none;padding:5px;border-radius:4px;
                                     cursor:pointer;font-size:11px;
                                 ">
@@ -2280,10 +2381,20 @@
                                 ">
                                     🔬 Công nghệ
                                 </button>
+                                <button onclick="showDiplomacyMenu()" style="
+                                    background:#34d399;color:#1a1a2e;border:none;padding:5px;border-radius:4px;
+                                    cursor:pointer;font-size:11px;
+                                ">
+                                    🤝 Ngoại giao
+                                </button>
                             </div>
                         `;
-            } else if (city.owner && owner && city.owner !== playerId) {
+            } else if (province.owner && owner && province.owner !== playerId) {
                 if (player && player.isAlive) {
+                    const isAtWar = gameState.wars.some(w =>
+                        (w.fromId === playerId && w.toId === owner.id) ||
+                        (w.fromId === owner.id && w.toId === playerId)
+                    );
                     html += `
                                 <hr style="border-color:#333;">
                                 <button onclick="prepareInvasion()" style="
@@ -2292,36 +2403,91 @@
                                 ">
                                     ⚔️ Xâm chiếm
                                 </button>
+                                ${!isAtWar ? `
+                                    <button onclick="declareWar('${playerId}', '${owner.id}')" style="
+                                        background:#fb923c;color:#fff;border:none;padding:6px;border-radius:4px;
+                                        cursor:pointer;width:100%;font-size:11px;
+                                    ">
+                                        ⚔️ Tuyên chiến
+                                    </button>
+                                ` : `
+                                    <button onclick="makePeace('${playerId}', '${owner.id}')" style="
+                                        background:#4ade80;color:#1a1a2e;border:none;padding:6px;border-radius:4px;
+                                        cursor:pointer;width:100%;font-size:11px;
+                                    ">
+                                        🕊️ Cầu hòa
+                                    </button>
+                                `}
+                                <button onclick="makeAlliance('${playerId}', '${owner.id}')" style="
+                                    background:#a78bfa;color:#fff;border:none;padding:6px;border-radius:4px;
+                                    cursor:pointer;width:100%;font-size:11px;
+                                ">
+                                    🤝 Đề xuất liên minh
+                                </button>
                             `;
                 }
             }
             document.getElementById('info-content').innerHTML = html;
         }
 
-        function showBuildMenu(city) {
-            if (!city || city.owner !== playerId) return;
+        // ==================== MENU DIPLOMACY ====================
+        function showDiplomacyMenu() {
             const player = gameState.players[playerId];
+            if (!player) return;
+            let html = `
+                        <h4 style="color:#34d399;font-size:13px;">🤝 Ngoại giao</h4>
+                        <p style="font-size:11px;">Quan hệ với các quốc gia khác:</p>
+                        <hr style="border-color:#333;">
+                        <div style="display:flex;flex-direction:column;gap:3px;max-height:200px;overflow-y:auto;">
+                    `;
+            nationsData.forEach(nation => {
+                if (nation.id === selectedNationId) return;
+                const relation = gameState.diplomacy[selectedNationId]?.[nation.id]?.relation || 50;
+                const isAlliance = gameState.alliances.some(a =>
+                    (a.fromId === selectedNationId && a.toId === nation.id) ||
+                    (a.fromId === nation.id && a.toId === selectedNationId)
+                );
+                const isAtWar = gameState.wars.some(w =>
+                    (w.fromId === selectedNationId && w.toId === nation.id) ||
+                    (w.fromId === nation.id && w.toId === selectedNationId)
+                );
+                const relationColor = relation > 70 ? '#4ade80' : relation > 40 ? '#fbbf24' : '#e94560';
+                html += `
+                            <div style="background:#1a1a2e;padding:4px 8px;border-radius:4px;display:flex;justify-content:space-between;align-items:center;font-size:10px;">
+                                <span style="color:${nation.color};">● ${nation.name}</span>
+                                <span>
+                                    ${isAlliance ? '🤝 ' : ''}
+                                    ${isAtWar ? '⚔️ ' : ''}
+                                    <span style="color:${relationColor};">${Math.floor(relation)}%</span>
+                                </span>
+                            </div>
+                        `;
+            });
+            html += '</div>';
+            document.getElementById('info-content').innerHTML = html;
+        }
 
+        // ==================== SHOW BUILD MENU ====================
+        function showBuildMenu(province) {
+            if (!province || province.owner !== playerId) return;
+            const player = gameState.players[playerId];
             const categories = {
                 military: '🏛️ Quân sự',
                 economy: '💰 Kinh tế',
                 civil: '🏥 Dân sự',
                 special: '👑 Đặc biệt'
             };
-
             let html = `
-                        <h4 style="color:#4ade80;font-size:13px;">🏗️ Xây dựng tại ${city.name}</h4>
-                        <p style="font-size:10px;">💰 Vàng: ${Math.floor(player.gold)} | 🪵 Gỗ: ${Math.floor(player.wood)} | 🪨 Đá: ${Math.floor(player.stone)}</p>
+                        <h4 style="color:#4ade80;font-size:13px;">🏗️ Xây dựng tại ${province.name}</h4>
+                        <p style="font-size:10px;">💰 Vàng: ${Math.floor(player.gold)} | 🪵 Gỗ: ${Math.floor(province.wood)} | 🪨 Đá: ${Math.floor(province.stone)}</p>
                         <hr style="border-color:#333;">
                     `;
-
             Object.keys(categories).forEach(cat => {
                 html +=
                     `<p style="color:#888;font-size:10px;margin-top:4px;">${categories[cat]}</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;">`;
                 Object.keys(BUILDINGS).forEach(key => {
                     const b = BUILDINGS[key];
                     if (b.category !== cat) return;
-
                     let goldCost = b.cost;
                     let woodCost = Math.floor(b.cost * 0.3);
                     let stoneCost = Math.floor(b.cost * 0.2);
@@ -2334,11 +2500,10 @@
                     goldCost = Math.floor(goldCost);
                     woodCost = Math.floor(woodCost);
                     stoneCost = Math.floor(stoneCost);
-
-                    const canAfford = player.gold >= goldCost && player.wood >= woodCost && player.stone >=
+                    const canAfford = player.gold >= goldCost && province.wood >= woodCost && province.stone >=
                         stoneCost;
                     html += `
-                                <button onclick="buildBuilding(${city.id}, '${key}')" style="
+                                <button onclick="buildBuilding(${province.id}, '${key}')" style="
                                     background:${canAfford ? '#2d2d4e' : '#1a1a2e'};
                                     color:${canAfford ? '#fff' : '#555'};
                                     border:1px solid ${canAfford ? '#4ade80' : '#333'};
@@ -2352,10 +2517,10 @@
                 });
                 html += '</div>';
             });
-
             document.getElementById('info-content').innerHTML = html;
         }
 
+        // ==================== MENU CHÍNH TRỊ ====================
         function showPolicyMenu() {
             const player = gameState.players[playerId];
             if (!player) return;
@@ -2388,6 +2553,7 @@
             document.getElementById('info-content').innerHTML = html;
         }
 
+        // ==================== MENU CÔNG NGHỆ ====================
         function showTechMenu() {
             const player = gameState.players[playerId];
             if (!player) return;
@@ -2421,30 +2587,29 @@
             document.getElementById('info-content').innerHTML = html;
         }
 
+        // ==================== PREPARE INVASION ====================
         function prepareInvasion() {
-            if (!selectedCity) return;
-            const city = selectedCity;
+            if (!selectedProvince) return;
+            const province = selectedProvince;
             const player = gameState.players[playerId];
             if (!player) return;
-
-            let myCities = gameState.cities.filter(c => c.owner === playerId && c.id !== city.id);
-            if (myCities.length === 0) {
-                alert('❌ Bạn không có thành phố nào để gửi quân!');
+            let myProvinces = gameState.provinces.filter(p => p.owner === playerId && p.id !== province.id);
+            if (myProvinces.length === 0) {
+                alert('❌ Bạn không có tỉnh nào để gửi quân!');
                 return;
             }
-
             let html = `
-                        <h4 style="color:#e94560;font-size:13px;">⚔️ Xâm chiếm ${city.name}</h4>
-                        <p style="font-size:11px;">Chọn thành phố gửi quân:</p>
+                        <h4 style="color:#e94560;font-size:13px;">⚔️ Xâm chiếm ${province.name}</h4>
+                        <p style="font-size:11px;">Chọn tỉnh gửi quân:</p>
                         <div style="display:flex;flex-direction:column;gap:3px;max-height:150px;overflow-y:auto;">
                     `;
-            myCities.forEach(c => {
+            myProvinces.forEach(p => {
                 html += `
-                            <button onclick="showInvasionAmount(${c.id}, ${city.id})" style="
+                            <button onclick="showInvasionAmount(${p.id}, ${province.id})" style="
                                 background:#2d2d4e;color:#fff;border:1px solid #e94560;
                                 padding:5px;border-radius:4px;cursor:pointer;text-align:left;font-size:10px;
                             ">
-                                🏙️ ${c.name} - ⚔️${Math.floor(c.army)} 💰${Math.floor(c.gold || 0)}
+                                🏙️ ${p.name} - ⚔️${Math.floor(p.army)} 💰${Math.floor(p.gold || 0)}
                             </button>
                         `;
             });
@@ -2452,19 +2617,19 @@
             document.getElementById('info-content').innerHTML = html;
         }
 
-        function showInvasionAmount(fromCityId, toCityId) {
-            const fromCity = gameState.cities.find(c => c.id === fromCityId);
-            if (!fromCity) return;
+        function showInvasionAmount(fromProvId, toProvId) {
+            const fromProv = gameState.provinces.find(p => p.id === fromProvId);
+            if (!fromProv) return;
             let html = `
                         <h4 style="color:#e94560;font-size:13px;">⚔️ Xâm chiếm</h4>
-                        <p style="font-size:11px;">Từ: ${fromCity.name} (⚔️${Math.floor(fromCity.army)})</p>
-                        <p style="font-size:11px;">Đến: ${gameState.cities.find(c => c.id === toCityId)?.name}</p>
+                        <p style="font-size:11px;">Từ: ${fromProv.name} (⚔️${Math.floor(fromProv.army)})</p>
+                        <p style="font-size:11px;">Đến: ${gameState.provinces.find(p => p.id === toProvId)?.name}</p>
                         <hr style="border-color:#333;">
                         <p style="font-size:11px;">Nhập số quân tấn công:</p>
-                        <input id="invasion-units" type="number" value="${Math.floor(fromCity.army / 2)}" 
-                               min="1" max="${Math.floor(fromCity.army)}" 
+                        <input id="invasion-units" type="number" value="${Math.floor(fromProv.army / 2)}" 
+                               min="1" max="${Math.floor(fromProv.army)}" 
                                style="width:100%;padding:5px;margin:4px 0;background:#1a1a2e;color:#fff;border:1px solid #e94560;border-radius:4px;font-size:11px;">
-                        <button onclick="executeInvasion(${fromCityId}, ${toCityId})" style="
+                        <button onclick="executeInvasion(${fromProvId}, ${toProvId})" style="
                             background:#e94560;color:#fff;border:none;padding:6px;border-radius:4px;
                             cursor:pointer;width:100%;font-weight:bold;font-size:11px;
                         ">
@@ -2474,35 +2639,35 @@
             document.getElementById('info-content').innerHTML = html;
         }
 
-        function executeInvasion(fromCityId, toCityId) {
+        function executeInvasion(fromProvId, toProvId) {
             const input = document.getElementById('invasion-units');
             const units = parseInt(input.value);
             if (!units || units <= 0) {
                 alert('❌ Số quân không hợp lệ!');
                 return;
             }
-            invadeCity(fromCityId, toCityId, units);
+            invadeProvince(fromProvId, toProvId, units);
         }
 
-        function selectUnit(city) {
-            if (!city || city.owner !== playerId) {
-                alert('❌ Đây không phải thành phố của bạn!');
+        // ==================== SELECT UNIT ====================
+        function selectUnit(province) {
+            if (!province || province.owner !== playerId) {
+                alert('❌ Đây không phải tỉnh của bạn!');
                 return;
             }
-            if (city.army < 1) {
+            if (province.army < 1) {
                 alert('❌ Không có quân để điều!');
                 return;
             }
-
-            selectedCity = city;
+            selectedProvince = province;
             isSelectingUnit = true;
             document.getElementById('info-content').innerHTML = `
                         <h4 style="color:#4ade80;font-size:13px;">🎯 Đang chọn quân</h4>
-                        <p style="font-size:11px;">Từ: ${city.name} (⚔️${Math.floor(city.army)})</p>
-                        <p style="font-size:11px;color:#fbbf24;">Click vào một thành phố khác để di chuyển</p>
+                        <p style="font-size:11px;">Từ: ${province.name} (⚔️${Math.floor(province.army)})</p>
+                        <p style="font-size:11px;color:#fbbf24;">Click vào một tỉnh khác để di chuyển</p>
                         <p style="font-size:10px;color:#888;">Click vào đất trống để bỏ chọn</p>
                     `;
-            render();
+            needsRender = true;
         }
 
         // ==================== GLOBAL ====================
@@ -2516,15 +2681,19 @@
         window.showBuildMenu = showBuildMenu;
         window.showPolicyMenu = showPolicyMenu;
         window.showTechMenu = showTechMenu;
+        window.showDiplomacyMenu = showDiplomacyMenu;
         window.prepareInvasion = prepareInvasion;
         window.showInvasionAmount = showInvasionAmount;
         window.executeInvasion = executeInvasion;
+        window.declareWar = declareWar;
+        window.makeAlliance = makeAlliance;
+        window.makePeace = makePeace;
         window.loadMap = loadMap;
-        window.selectedCity = () => selectedCity;
+        window.selectedProvince = () => selectedProvince;
 
         // ==================== KHỞI TẠO ====================
         window.onload = function() {
-            console.log('🎮 AoH RTS - Đang khởi tạo...');
+            console.log('🎮 Age of History - Đang khởi tạo...');
             setupLogin();
             setupEvents();
             loadMap();
