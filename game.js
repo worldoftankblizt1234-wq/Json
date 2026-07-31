@@ -6,10 +6,11 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// Firebase Config
+// Firebase Config (của bạn)
 const firebaseConfig = {
     apiKey: "AIzaSyCGXq3xpUv_qaH5R7RB9LlJwsnVhrlewoA",
     authDomain: "country-61ecf.firebaseapp.com",
+    databaseURL: "https://country-61ecf-default-rtdb.asia-southeast1.firebasedatabase.app",
     projectId: "country-61ecf",
     storageBucket: "country-61ecf.firebasestorage.app",
     messagingSenderId: "91679803947",
@@ -42,8 +43,13 @@ let selectedBuilding = null;
 let selectedArmy = null;
 let isBuildingMode = false;
 let buildingType = null;
+let isDragging = false;
+let dragStartX = 0;
+let dragStartY = 0;
+let cameraX = 0;
+let cameraY = 0;
 
-// Danh sách công trình có thể xây
+// ==================== DANH SÁCH CÔNG TRÌNH ====================
 const BUILDINGS = {
     barracks: {
         name: 'Doanh trại',
@@ -51,6 +57,7 @@ const BUILDINGS = {
         icon: '🏛️',
         effect: 'Tăng sản xuất quân 2x',
         buildTime: 5000,
+        color: '#e94560',
     },
     farm: {
         name: 'Trang trại',
@@ -58,6 +65,7 @@ const BUILDINGS = {
         icon: '🌾',
         effect: 'Tăng vàng +5/giây',
         buildTime: 3000,
+        color: '#4ade80',
     },
     wall: {
         name: 'Tường thành',
@@ -65,6 +73,7 @@ const BUILDINGS = {
         icon: '🧱',
         effect: 'Phòng thủ +50%',
         buildTime: 8000,
+        color: '#60a5fa',
     },
     market: {
         name: 'Chợ',
@@ -72,6 +81,7 @@ const BUILDINGS = {
         icon: '🏪',
         effect: 'Thương mại +10/giây',
         buildTime: 4000,
+        color: '#fbbf24',
     },
     temple: {
         name: 'Đền thờ',
@@ -79,6 +89,7 @@ const BUILDINGS = {
         icon: '⛪',
         effect: 'Tinh thần +20%',
         buildTime: 6000,
+        color: '#a78bfa',
     },
     port: {
         name: 'Cảng',
@@ -86,49 +97,71 @@ const BUILDINGS = {
         icon: '⚓',
         effect: 'Xuất khẩu +15/giây',
         buildTime: 7000,
+        color: '#34d399',
+    },
+    mine: {
+        name: 'Mỏ vàng',
+        cost: 45,
+        icon: '⛏️',
+        effect: 'Vàng +8/giây',
+        buildTime: 3500,
+        color: '#f472b6',
     },
 };
 
-// Chính trị
+// ==================== CHÍNH TRỊ ====================
 const POLICIES = {
     democracy: {
         name: 'Dân chủ',
         cost: 100,
         effect: 'Tăng vàng +20%, giảm quân 10%',
         icon: '🗳️',
+        color: '#4ade80',
     },
     monarchy: {
         name: 'Quân chủ',
         cost: 80,
         effect: 'Tăng quân +30%, giảm vàng 10%',
         icon: '👑',
+        color: '#fbbf24',
     },
     communism: {
         name: 'Cộng sản',
         cost: 120,
         effect: 'Sản xuất +40%, thương mại -20%',
         icon: '⚒️',
+        color: '#e94560',
     },
     capitalism: {
         name: 'Tư bản',
         cost: 150,
         effect: 'Thương mại +50%, quân -20%',
         icon: '💰',
+        color: '#34d399',
     },
     theocracy: {
         name: 'Thần quyền',
         cost: 90,
         effect: 'Tinh thần +50%, công nghệ -20%',
         icon: '⛪',
+        color: '#a78bfa',
+    },
+    federation: {
+        name: 'Liên bang',
+        cost: 130,
+        effect: 'Phòng thủ +30%, ngoại giao +20%',
+        icon: '🤝',
+        color: '#60a5fa',
     },
 };
 
-// Công nghệ
+// ==================== CÔNG NGHỆ ====================
 const TECHNOLOGIES = {
     agriculture: {
         name: 'Nông nghiệp',
         cost: 50,
         effect: 'Vàng +5/giây',
+        icon: '🌾',
         level: 0,
         maxLevel: 5,
     },
@@ -136,6 +169,7 @@ const TECHNOLOGIES = {
         name: 'Quân sự',
         cost: 60,
         effect: 'Sức mạnh quân +10%',
+        icon: '⚔️',
         level: 0,
         maxLevel: 5,
     },
@@ -143,6 +177,7 @@ const TECHNOLOGIES = {
         name: 'Thương mại',
         cost: 70,
         effect: 'Thương mại +15%',
+        icon: '📦',
         level: 0,
         maxLevel: 5,
     },
@@ -150,6 +185,7 @@ const TECHNOLOGIES = {
         name: 'Phòng thủ',
         cost: 80,
         effect: 'Phòng thủ +20%',
+        icon: '🛡️',
         level: 0,
         maxLevel: 5,
     },
@@ -157,6 +193,15 @@ const TECHNOLOGIES = {
         name: 'Khoa học',
         cost: 100,
         effect: 'Giảm chi phí xây dựng 10%',
+        icon: '🔬',
+        level: 0,
+        maxLevel: 5,
+    },
+    diplomacy: {
+        name: 'Ngoại giao',
+        cost: 90,
+        effect: 'Quan hệ +20%, liên minh dễ hơn',
+        icon: '🤝',
         level: 0,
         maxLevel: 5,
     },
@@ -165,53 +210,87 @@ const TECHNOLOGIES = {
 // ==================== LOAD MAP ====================
 async function loadMap() {
     try {
+        console.log('🔄 Đang tải bản đồ...');
         const response = await fetch('map.json');
         mapData = await response.json();
+        console.log('✅ Đã tải bản đồ!');
         
+        // Set canvas size
         canvas.width = mapData.info?.width || 1280;
         canvas.height = mapData.info?.height || 881;
         
-        // Khởi tạo thành phố
+        // Khởi tạo thành phố từ dữ liệu
         const burgs = mapData.burgs || [];
-        gameState.cities = burgs.map(burg => ({
-            id: burg.i,
-            name: burg.name || `City ${burg.i}`,
-            x: burg.x,
-            y: burg.y,
-            owner: null,
-            population: burg.population || 1000,
-            army: Math.floor(Math.random() * 8) + 5,
-            gold: 100,
-            buildings: [],
-            isCapital: burg.capital === 1,
-            defense: 10,
-            type: burg.type || 'Generic',
-            culture: burg.culture || null,
-        }));
+        const cultures = mapData.cultures || [];
         
+        gameState.cities = burgs.map(burg => {
+            // Tìm culture cho thành phố này
+            let culture = null;
+            if (burg.culture !== undefined) {
+                culture = cultures.find(c => c.i === burg.culture);
+            }
+            
+            return {
+                id: burg.i,
+                name: burg.name || `City ${burg.i}`,
+                x: burg.x,
+                y: burg.y,
+                owner: null,
+                population: burg.population || 1000,
+                army: Math.floor(Math.random() * 8) + 5,
+                gold: 100,
+                buildings: [],
+                isCapital: burg.capital === 1,
+                defense: 10,
+                type: burg.type || 'Generic',
+                culture: culture ? culture.name : null,
+                cultureColor: culture ? culture.color : '#888',
+                income: 5,
+                production: burg.production || [],
+            };
+        });
+        
+        console.log(`✅ Đã tạo ${gameState.cities.length} thành phố`);
+        
+        // Vẽ bản đồ
         render();
         updateUI();
+        
+        // Kết nối Firebase
         initFirebase();
         
     } catch (error) {
-        console.error('❌ Lỗi:', error);
+        console.error('❌ Lỗi tải map:', error);
+        document.getElementById('info-content').innerHTML = `
+            <p style="color: #e94560;">❌ Không thể tải map.json!</p>
+            <p style="font-size: 12px;">Kiểm tra file có tồn tại không.</p>
+        `;
     }
 }
 
-// ==================== FIREBASE ====================
+// ==================== FIREBASE INIT ====================
 function initFirebase() {
+    // Load Firebase SDK
     const script = document.createElement('script');
     script.src = 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js';
     script.onload = () => {
         const script2 = document.createElement('script');
         script2.src = 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js';
         script2.onload = () => {
+            // Khởi tạo Firebase
             firebase.initializeApp(firebaseConfig);
             db = firebase.database();
             gameRef = db.ref('birthday_rts');
             
+            console.log('🔥 Firebase đã kết nối!');
+            
+            // Đăng ký người chơi
             registerPlayer();
+            
+            // Lắng nghe thay đổi
             listenToGameChanges();
+            
+            // Bắt đầu game loop
             startGameLoop();
         };
         document.head.appendChild(script2);
@@ -221,7 +300,7 @@ function initFirebase() {
 
 // ==================== ĐĂNG KÝ NGƯỜI CHƠI ====================
 function registerPlayer() {
-    playerName = document.getElementById('player-name').value || 'Chiến Binh';
+    playerName = document.getElementById('player-name')?.value || 'Chiến Binh';
     playerId = `player_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
     
     const playersRef = gameRef.child('players').child(playerId);
@@ -248,17 +327,24 @@ function registerPlayer() {
                 score: 0,
                 joinedAt: Date.now(),
                 isAlive: true,
-                income: 10, // vàng/giây
+                income: 10,
+                alliances: [],
+                wars: [],
             };
             
             playersRef.set(playerData);
             
+            // Gán thành phố cho người chơi
             if (startCity) {
                 startCity.owner = playerId;
                 startCity.army = 15;
                 startCity.gold = 100;
                 updateCity(startCity);
             }
+            
+            console.log(`✅ Đã đăng ký: ${playerName} (${playerId})`);
+            document.getElementById('connection-status').textContent = '🟢 Đã kết nối';
+            document.getElementById('connection-status').style.color = '#4ade80';
         }
     });
 }
@@ -274,10 +360,11 @@ function listenToGameChanges() {
                 const localCity = gameState.cities.find(c => c.id == key);
                 if (localCity) {
                     localCity.owner = cityData.owner;
-                    localCity.army = cityData.army;
+                    localCity.army = cityData.army || 0;
                     localCity.gold = cityData.gold || 0;
                     localCity.buildings = cityData.buildings || [];
                     localCity.defense = cityData.defense || 10;
+                    localCity.population = cityData.population || 1000;
                 }
             });
             render();
@@ -295,16 +382,7 @@ function listenToGameChanges() {
         }
     });
     
-    // Armies
-    gameRef.child('armies').on('value', (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-            gameState.armies = Object.values(data);
-            render();
-        }
-    });
-    
-    // Moving armies
+    // Moving Armies
     gameRef.child('movingArmies').on('value', (snapshot) => {
         const data = snapshot.val();
         if (data) {
@@ -312,60 +390,86 @@ function listenToGameChanges() {
             render();
         }
     });
+    
+    // Messages
+    gameRef.child('messages').limitToLast(50).on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            gameState.messages = Object.values(data);
+            updateChat();
+        }
+    });
 }
 
 // ==================== GAME LOOP ====================
 function startGameLoop() {
     setInterval(() => {
-        if (!playerId) return;
+        if (!playerId || !gameState.players[playerId]) return;
         
-        gameState.gameTime += 1;
+        gameState.gameTime += 0.1;
+        
+        const player = gameState.players[playerId];
+        if (!player || !player.isAlive) return;
         
         // Tự động tăng tiền mỗi giây
-        const player = gameState.players[playerId];
-        if (player) {
-            // Tính thu nhập từ thành phố
-            let income = player.cities.length * 5;
-            
-            // Cộng thêm từ công trình
-            player.cities.forEach(cityId => {
-                const city = gameState.cities.find(c => c.id === cityId);
-                if (city && city.buildings) {
-                    city.buildings.forEach(building => {
-                        if (building.type === 'farm') income += 3;
-                        if (building.type === 'market') income += 5;
-                        if (building.type === 'port') income += 7;
+        let income = player.cities.length * 5;
+        
+        // Cộng thêm từ công trình
+        player.cities.forEach(cityId => {
+            const city = gameState.cities.find(c => c.id === cityId);
+            if (city && city.buildings) {
+                city.buildings.forEach(building => {
+                    if (building.type === 'farm') income += 3;
+                    if (building.type === 'market') income += 5;
+                    if (building.type === 'port') income += 7;
+                    if (building.type === 'mine') income += 8;
+                });
+            }
+        });
+        
+        // Áp dụng chính sách
+        if (player.policy) {
+            const policy = POLICIES[player.policy];
+            if (policy) {
+                if (player.policy === 'democracy') income *= 1.2;
+                if (player.policy === 'capitalism') income *= 1.5;
+                if (player.policy === 'communism') income *= 1.4;
+                if (player.policy === 'federation') income *= 1.1;
+            }
+        }
+        
+        // Áp dụng công nghệ
+        if (player.technology) {
+            const agriLevel = player.technology.agriculture || 0;
+            income += agriLevel * 2;
+            const tradeLevel = player.technology.trade || 0;
+            income *= (1 + tradeLevel * 0.05);
+        }
+        
+        // Cộng tiền
+        const incomePerTick = income / 10;
+        player.gold = (player.gold || 0) + incomePerTick;
+        
+        // Cập nhật lên Firebase
+        gameRef.child('players').child(playerId).update({
+            gold: player.gold,
+        });
+        
+        // Tự động tăng quân ở các thành phố
+        player.cities.forEach(cityId => {
+            const city = gameState.cities.find(c => c.id === cityId);
+            if (city) {
+                // Tăng quân dựa trên doanh trại
+                let bonus = 0.02;
+                if (city.buildings) {
+                    city.buildings.forEach(b => {
+                        if (b.type === 'barracks') bonus += 0.05;
                     });
                 }
-            });
-            
-            // Áp dụng chính sách
-            if (player.policy) {
-                const policy = POLICIES[player.policy];
-                if (policy) {
-                    if (player.policy === 'democracy') income *= 1.2;
-                    if (player.policy === 'capitalism') income *= 1.5;
-                    if (player.policy === 'communism') income *= 1.4;
-                }
+                city.army += bonus;
+                updateCity(city);
             }
-            
-            // Cộng tiền
-            player.gold = (player.gold || 0) + income / 10;
-            
-            // Cập nhật lên Firebase
-            gameRef.child('players').child(playerId).update({
-                gold: player.gold,
-            });
-            
-            // Tự động tăng quân ở các thành phố
-            player.cities.forEach(cityId => {
-                const city = gameState.cities.find(c => c.id === cityId);
-                if (city) {
-                    city.army += 0.02; // Tăng chậm
-                    updateCity(city);
-                }
-            });
-        }
+        });
         
         updateUI();
         render();
@@ -388,13 +492,20 @@ function buildBuilding(cityId, buildingType) {
     const building = BUILDINGS[buildingType];
     if (!building) return;
     
-    if (player.gold < building.cost) {
-        alert(`❌ Không đủ vàng! Cần ${building.cost}, có ${Math.floor(player.gold)}`);
+    // Kiểm tra chi phí (có giảm giá từ công nghệ)
+    let cost = building.cost;
+    if (player.technology && player.technology.science) {
+        cost *= (1 - player.technology.science * 0.05);
+    }
+    cost = Math.floor(cost);
+    
+    if (player.gold < cost) {
+        alert(`❌ Không đủ vàng! Cần ${cost}, có ${Math.floor(player.gold)}`);
         return;
     }
     
     // Trừ tiền
-    player.gold -= building.cost;
+    player.gold -= cost;
     gameRef.child('players').child(playerId).update({ gold: player.gold });
     
     // Thêm công trình
@@ -402,6 +513,7 @@ function buildBuilding(cityId, buildingType) {
         id: `build_${Date.now()}`,
         type: buildingType,
         name: building.name,
+        icon: building.icon,
         builtAt: Date.now(),
         level: 1,
     };
@@ -410,38 +522,204 @@ function buildBuilding(cityId, buildingType) {
     city.buildings.push(newBuilding);
     updateCity(city);
     
-    // Cập nhật lợi ích
-    applyBuildingEffect(city, buildingType);
+    // Thông báo
+    const msg = {
+        text: `🏗️ ${playerName} đã xây ${building.name} tại ${city.name}!`,
+        time: Date.now(),
+        type: 'system',
+    };
+    gameRef.child('messages').push(msg);
     
-    console.log(`✅ Đã xây ${building.name} tại ${city.name}`);
     alert(`✅ Đã xây ${building.name} thành công!`);
+    render();
+    updateUI();
+}
+
+// ==================== TUYỂN QUÂN ====================
+function recruitArmy(cityId) {
+    if (!playerId) return;
+    
+    const player = gameState.players[playerId];
+    if (!player) return;
+    
+    const city = gameState.cities.find(c => c.id === cityId);
+    if (!city || city.owner !== playerId) {
+        alert('❌ Không phải thành phố của bạn!');
+        return;
+    }
+    
+    // Chi phí tuyển quân (có thể giảm giá từ công nghệ)
+    let cost = 20;
+    if (player.technology && player.technology.military) {
+        cost -= player.technology.military * 1;
+    }
+    cost = Math.max(10, Math.floor(cost));
+    
+    if (player.gold < cost) {
+        alert(`❌ Không đủ vàng! Cần ${cost}, có ${Math.floor(player.gold)}`);
+        return;
+    }
+    
+    player.gold -= cost;
+    city.army += 5;
+    
+    gameRef.child('players').child(playerId).update({ gold: player.gold });
+    updateCity(city);
+    
+    alert(`✅ Tuyển được 5 quân tại ${city.name}!`);
+    updateUI();
     render();
 }
 
-function applyBuildingEffect(city, buildingType) {
-    switch(buildingType) {
-        case 'farm':
-            // Tăng thu nhập
-            break;
-        case 'barracks':
-            // Tăng sản xuất quân
-            city.army += 10;
-            updateCity(city);
-            break;
-        case 'wall':
-            // Tăng phòng thủ
-            city.defense = (city.defense || 10) * 1.5;
-            updateCity(city);
-            break;
-        case 'market':
-            // Tăng thương mại
-            break;
-        case 'temple':
-            // Tăng tinh thần
-            break;
-        case 'port':
-            // Tăng xuất khẩu
-            break;
+// ==================== XÂM CHIẾM ====================
+function invadeCity(fromCityId, toCityId, units) {
+    if (!playerId) return;
+    
+    const player = gameState.players[playerId];
+    if (!player) return;
+    
+    const fromCity = gameState.cities.find(c => c.id === fromCityId);
+    const toCity = gameState.cities.find(c => c.id === toCityId);
+    
+    if (!fromCity || !toCity) return;
+    if (fromCity.owner !== playerId) {
+        alert('❌ Không phải thành phố của bạn!');
+        return;
+    }
+    if (fromCity.army < units) {
+        alert(`❌ Không đủ quân! (Có ${Math.floor(fromCity.army)})`);
+        return;
+    }
+    if (toCity.owner === playerId) {
+        alert('❌ Đây là thành phố của bạn!');
+        return;
+    }
+    
+    // Trừ quân khỏi thành phố gửi
+    fromCity.army -= units;
+    updateCity(fromCity);
+    
+    // Tạo đoàn quân di chuyển
+    const armyId = `army_${Date.now()}`;
+    const army = {
+        id: armyId,
+        playerId: playerId,
+        playerName: playerName,
+        fromCityId: fromCityId,
+        toCityId: toCityId,
+        units: units,
+        startX: fromCity.x,
+        startY: fromCity.y,
+        targetX: toCity.x,
+        targetY: toCity.y,
+        progress: 0,
+        startTime: Date.now(),
+        speed: 0.012,
+    };
+    
+    // Lưu vào Firebase
+    gameRef.child('movingArmies').child(armyId).set(army);
+    
+    // Xử lý khi đến nơi
+    const travelTime = 3000;
+    setTimeout(() => {
+        resolveBattle(toCityId, playerId, units);
+        gameRef.child('movingArmies').child(armyId).remove();
+    }, travelTime);
+}
+
+function resolveBattle(cityId, attackerId, attackPower) {
+    const city = gameState.cities.find(c => c.id === cityId);
+    if (!city) return;
+    
+    const defenderId = city.owner;
+    const attacker = gameState.players[attackerId];
+    const defender = defenderId ? gameState.players[defenderId] : null;
+    
+    // Tính sức mạnh tấn công
+    let attackStrength = attackPower;
+    if (attacker && attacker.technology) {
+        const militaryLevel = attacker.technology.military || 0;
+        attackStrength *= (1 + militaryLevel * 0.1);
+    }
+    
+    // Tính sức mạnh phòng thủ
+    let defenseStrength = city.army + (city.defense || 10) * 0.5;
+    if (defender && defender.technology) {
+        const defenseLevel = defender.technology.defense || 0;
+        defenseStrength *= (1 + defenseLevel * 0.1);
+    }
+    
+    // Kiểm tra tường thành
+    if (city.buildings) {
+        city.buildings.forEach(b => {
+            if (b.type === 'wall') defenseStrength *= 1.5;
+        });
+    }
+    
+    if (attackStrength > defenseStrength) {
+        // 🏆 THẮNG
+        const oldOwner = city.owner;
+        city.owner = attackerId;
+        city.army = Math.floor(attackStrength - defenseStrength * 0.5);
+        city.gold = Math.floor(city.gold * 0.6);
+        updateCity(city);
+        
+        // Cập nhật cho người tấn công
+        if (attacker) {
+            if (!attacker.cities.includes(city.id)) {
+                attacker.cities.push(city.id);
+            }
+            attacker.score = (attacker.score || 0) + 20;
+            gameRef.child('players').child(attackerId).update({
+                cities: attacker.cities,
+                score: attacker.score,
+            });
+        }
+        
+        // Cập nhật cho người phòng thủ
+        if (defender) {
+            defender.cities = defender.cities.filter(id => id !== city.id);
+            if (defender.cities.length === 0) {
+                defender.isAlive = false;
+            }
+            gameRef.child('players').child(defenderId).update({
+                cities: defender.cities,
+                isAlive: defender.isAlive,
+            });
+        }
+        
+        // Thông báo
+        const msg = {
+            text: `🏰 ${attacker?.name || 'Ai đó'} đã chiếm ${city.name} từ ${defender?.name || 'AI'}!`,
+            time: Date.now(),
+            type: 'system',
+        };
+        gameRef.child('messages').push(msg);
+        
+        // Bonus vàng cho người thắng
+        if (attacker) {
+            attacker.gold += 50;
+            gameRef.child('players').child(attackerId).update({ gold: attacker.gold });
+        }
+        
+    } else {
+        // 💀 THUA
+        city.army = Math.floor(defenseStrength - attackStrength * 0.3);
+        updateCity(city);
+        
+        // Người tấn công mất quân
+        if (attacker) {
+            attacker.gold -= 20;
+            gameRef.child('players').child(attackerId).update({ gold: attacker.gold });
+        }
+        
+        const msg = {
+            text: `💀 ${attacker?.name || 'Ai đó'} thất bại khi tấn công ${city.name}!`,
+            time: Date.now(),
+            type: 'system',
+        };
+        gameRef.child('messages').push(msg);
     }
 }
 
@@ -468,11 +746,18 @@ function changePolicy(policyType) {
         policy: policyType,
     });
     
+    const msg = {
+        text: `📜 ${playerName} đã áp dụng chính sách ${policy.name}!`,
+        time: Date.now(),
+        type: 'system',
+    };
+    gameRef.child('messages').push(msg);
+    
     alert(`✅ Đã áp dụng chính sách ${policy.name}!`);
     updateUI();
 }
 
-// ==================== NGHIÊN CỨU CÔNG NGHỆ ====================
+// ==================== CÔNG NGHỆ ====================
 function researchTech(techType) {
     if (!playerId) return;
     
@@ -504,129 +789,15 @@ function researchTech(techType) {
         technology: player.technology,
     });
     
+    const msg = {
+        text: `🔬 ${playerName} đã nâng cấp ${tech.name} lên cấp ${tech.level}!`,
+        time: Date.now(),
+        type: 'system',
+    };
+    gameRef.child('messages').push(msg);
+    
     alert(`✅ Đã nâng cấp ${tech.name} lên cấp ${tech.level}!`);
     updateUI();
-}
-
-// ==================== XÂM CHIẾM ====================
-function invadeCity(fromCityId, toCityId, units) {
-    if (!playerId) return;
-    
-    const player = gameState.players[playerId];
-    if (!player) return;
-    
-    const fromCity = gameState.cities.find(c => c.id === fromCityId);
-    const toCity = gameState.cities.find(c => c.id === toCityId);
-    
-    if (!fromCity || !toCity) return;
-    if (fromCity.owner !== playerId) {
-        alert('❌ Không phải thành phố của bạn!');
-        return;
-    }
-    if (fromCity.army < units) {
-        alert(`❌ Không đủ quân! (Có ${Math.floor(fromCity.army)})`);
-        return;
-    }
-    
-    // Trừ quân khỏi thành phố gửi
-    fromCity.army -= units;
-    updateCity(fromCity);
-    
-    // Tạo đoàn quân di chuyển
-    const armyId = `army_${Date.now()}`;
-    const army = {
-        id: armyId,
-        playerId: playerId,
-        fromCityId: fromCityId,
-        toCityId: toCityId,
-        units: units,
-        startX: fromCity.x,
-        startY: fromCity.y,
-        targetX: toCity.x,
-        targetY: toCity.y,
-        progress: 0,
-        startTime: Date.now(),
-        speed: 0.01, // Tốc độ di chuyển
-    };
-    
-    // Lưu vào Firebase
-    gameRef.child('movingArmies').child(armyId).set(army);
-    
-    // Xử lý khi đến nơi (sau 3 giây)
-    setTimeout(() => {
-        resolveBattle(toCityId, playerId, units);
-        gameRef.child('movingArmies').child(armyId).remove();
-    }, 3000);
-}
-
-function resolveBattle(cityId, attackerId, attackPower) {
-    const city = gameState.cities.find(c => c.id === cityId);
-    if (!city) return;
-    
-    const defenderId = city.owner;
-    const defensePower = city.army + (city.defense || 10) * 0.5;
-    
-    // Tính sức mạnh tấn công
-    let attackStrength = attackPower;
-    const attacker = gameState.players[attackerId];
-    if (attacker && attacker.technology) {
-        const militaryLevel = attacker.technology.military || 0;
-        attackStrength *= (1 + militaryLevel * 0.1);
-    }
-    
-    if (attackStrength > defensePower) {
-        // Thắng
-        const oldOwner = city.owner;
-        city.owner = attackerId;
-        city.army = Math.floor(attackStrength - defensePower * 0.5);
-        updateCity(city);
-        
-        // Cập nhật cho người chơi
-        const attackerPlayer = gameState.players[attackerId];
-        if (attackerPlayer) {
-            attackerPlayer.cities.push(city.id);
-            attackerPlayer.score = (attackerPlayer.score || 0) + 20;
-            gameRef.child('players').child(attackerId).update({
-                cities: attackerPlayer.cities,
-                score: attackerPlayer.score,
-            });
-        }
-        
-        // Nếu có người phòng thủ
-        if (oldOwner) {
-            const defender = gameState.players[oldOwner];
-            if (defender) {
-                defender.cities = defender.cities.filter(id => id !== city.id);
-                if (defender.cities.length === 0) {
-                    defender.isAlive = false;
-                }
-                gameRef.child('players').child(oldOwner).update({
-                    cities: defender.cities,
-                    isAlive: defender.isAlive,
-                });
-            }
-        }
-        
-        // Thông báo
-        const msg = {
-            text: `🏰 ${attacker?.name || 'Ai đó'} đã chiếm ${city.name}!`,
-            time: Date.now(),
-            type: 'system',
-        };
-        gameRef.child('messages').push(msg);
-        
-    } else {
-        // Thua
-        city.army = Math.floor(defensePower - attackStrength * 0.3);
-        updateCity(city);
-        
-        const msg = {
-            text: `💀 ${attacker?.name || 'Ai đó'} thất bại khi tấn công ${city.name}!`,
-            time: Date.now(),
-            type: 'system',
-        };
-        gameRef.child('messages').push(msg);
-    }
 }
 
 // ==================== UPDATE THÀNH PHỐ ====================
@@ -639,11 +810,11 @@ function updateCity(city) {
         y: city.y,
         owner: city.owner,
         army: Math.floor(city.army),
-        gold: city.gold || 0,
+        gold: Math.floor(city.gold || 0),
         buildings: city.buildings || [],
-        defense: city.defense || 10,
+        defense: Math.floor(city.defense || 10),
         isCapital: city.isCapital || false,
-        population: city.population || 1000,
+        population: Math.floor(city.population || 1000),
     });
 }
 
@@ -651,6 +822,11 @@ function updateCity(city) {
 function render() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
+    // Vẽ background
+    ctx.fillStyle = '#0a0a1a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Vẽ map SVG
     const img = new Image();
     img.src = 'map.svg';
     img.onload = function() {
@@ -658,60 +834,65 @@ function render() {
         drawGameElements();
     };
     img.onerror = function() {
-        ctx.fillStyle = '#1a1a2e';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
         drawGameElements();
     };
 }
 
 function drawGameElements() {
-    // Vẽ quân đang di chuyển
+    // 1. Vẽ quân đang di chuyển
     gameState.movingArmies.forEach(army => {
         const progress = Math.min((Date.now() - army.startTime) / 3000, 1);
         const x = army.startX + (army.targetX - army.startX) * progress;
         const y = army.startY + (army.targetY - army.startY) * progress;
         
-        // Đoàn quân
-        ctx.beginPath();
-        ctx.arc(x, y, 12, 0, Math.PI * 2);
         const color = gameState.players[army.playerId]?.color || '#fff';
+        
+        // Đoàn quân
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.arc(x, y, 14, 0, Math.PI * 2);
         ctx.fillStyle = color;
         ctx.fill();
+        ctx.shadowBlur = 0;
         ctx.strokeStyle = '#ffd700';
         ctx.lineWidth = 3;
         ctx.stroke();
         
         // Số lượng
         ctx.fillStyle = '#fff';
-        ctx.font = 'bold 12px Arial';
+        ctx.font = 'bold 13px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText(`⚔️${army.units}`, x, y + 25);
+        ctx.fillText(`⚔️${Math.floor(army.units)}`, x, y + 28);
         
-        // Mũi tên chỉ hướng
-        const angle = Math.atan2(army.targetY - army.startY, army.targetX - army.startX);
-        ctx.beginPath();
-        ctx.moveTo(x + 15, y);
-        ctx.lineTo(x + 25, y - 5);
-        ctx.lineTo(x + 25, y + 5);
-        ctx.closePath();
-        ctx.fillStyle = '#ffd700';
-        ctx.fill();
+        // Tên người chơi
+        ctx.fillStyle = '#ddd';
+        ctx.font = '10px Arial';
+        ctx.fillText(army.playerName || '', x, y - 22);
     });
     
-    // Vẽ thành phố
+    // 2. Vẽ thành phố
     gameState.cities.forEach(city => {
         const owner = city.owner ? gameState.players[city.owner] : null;
         const color = owner ? owner.color : '#666';
         const isMine = city.owner === playerId;
+        const isEnemy = city.owner && city.owner !== playerId;
+        
+        // Bóng đổ
+        ctx.shadowColor = color;
+        ctx.shadowBlur = isMine ? 20 : 10;
         
         // Vòng tròn thành phố
-        const radius = isMine ? 16 : 12;
+        const radius = isMine ? 18 : 13;
         ctx.beginPath();
         ctx.arc(city.x, city.y, radius, 0, Math.PI * 2);
         ctx.fillStyle = color;
         ctx.fill();
-        ctx.strokeStyle = isMine ? '#ffd700' : '#fff';
-        ctx.lineWidth = isMine ? 3 : 1;
+        ctx.shadowBlur = 0;
+        
+        // Viền
+        ctx.strokeStyle = isMine ? '#ffd700' : isEnemy ? '#e94560' : '#fff';
+        ctx.lineWidth = isMine ? 3 : 1.5;
         ctx.stroke();
         
         // Thủ đô
@@ -725,41 +906,52 @@ function drawGameElements() {
             ctx.setLineDash([]);
         }
         
-        // Công trình
+        // Icon công trình
         if (city.buildings && city.buildings.length > 0) {
-            let yOffset = -radius - 25;
-            city.buildings.forEach(building => {
+            let yOffset = -radius - 28;
+            city.buildings.slice(0, 3).forEach(building => {
                 const bData = BUILDINGS[building.type];
                 if (bData) {
-                    ctx.fillStyle = '#4ade80';
-                    ctx.font = '12px Arial';
+                    ctx.font = '14px Arial';
                     ctx.textAlign = 'center';
                     ctx.fillText(bData.icon, city.x, city.y + yOffset);
-                    yOffset -= 15;
+                    yOffset -= 18;
                 }
             });
+            if (city.buildings.length > 3) {
+                ctx.fillStyle = '#4ade80';
+                ctx.font = '10px Arial';
+                ctx.fillText(`+${city.buildings.length - 3}`, city.x, city.y + yOffset + 5);
+            }
         }
         
-        // Tên
+        // Tên thành phố
         ctx.fillStyle = '#fff';
-        ctx.font = 'bold 11px Arial';
+        ctx.font = 'bold 12px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText(city.name, city.x, city.y - radius - 10);
+        ctx.fillText(city.name, city.x, city.y - radius - 12);
         
         // Quân đội
         ctx.fillStyle = '#ff6b6b';
-        ctx.font = 'bold 13px Arial';
-        ctx.fillText(`⚔️${Math.floor(city.army)}`, city.x, city.y + radius + 22);
+        ctx.font = 'bold 14px Arial';
+        ctx.fillText(`⚔️${Math.floor(city.army)}`, city.x, city.y + radius + 24);
         
         // Vàng
         ctx.fillStyle = '#ffd700';
         ctx.font = '11px Arial';
-        ctx.fillText(`💰${Math.floor(city.gold || 0)}`, city.x, city.y + radius + 38);
+        ctx.fillText(`💰${Math.floor(city.gold || 0)}`, city.x, city.y + radius + 40);
+        
+        // Tên quốc gia
+        if (owner) {
+            ctx.fillStyle = '#aaa';
+            ctx.font = '9px Arial';
+            ctx.fillText(owner.name, city.x, city.y + radius + 56);
+        }
         
         // Highlight khi chọn
         if (selectedCity && selectedCity.id === city.id) {
             ctx.beginPath();
-            ctx.arc(city.x, city.y, radius + 8, 0, Math.PI * 2);
+            ctx.arc(city.x, city.y, radius + 10, 0, Math.PI * 2);
             ctx.strokeStyle = '#4ade80';
             ctx.lineWidth = 3;
             ctx.setLineDash([6, 6]);
@@ -768,31 +960,33 @@ function drawGameElements() {
         }
     });
     
-    // UI trên canvas
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
-    ctx.fillRect(10, 10, 250, 70);
+    // 3. UI trên canvas
+    // Thông tin game
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    ctx.fillRect(10, 10, 220, 90);
     ctx.fillStyle = '#fff';
     ctx.font = '12px Arial';
     ctx.textAlign = 'left';
-    ctx.fillText(`⏱️ ${Math.floor(gameState.gameTime / 10)}s`, 20, 30);
+    ctx.fillText(`⏱️ ${Math.floor(gameState.gameTime)}s`, 20, 30);
     ctx.fillText(`👥 ${Object.keys(gameState.players).length} người chơi`, 20, 48);
-    ctx.fillText(`🏙️ ${gameState.cities.filter(c => c.owner === playerId).length} thành phố`, 20, 66);
+    const myCities = gameState.cities.filter(c => c.owner === playerId);
+    ctx.fillText(`🏙️ ${myCities.length} thành phố`, 20, 66);
+    ctx.fillText(`⚔️ Tổng quân: ${Math.floor(myCities.reduce((sum, c) => sum + c.army, 0))}`, 20, 84);
     
     // Hướng dẫn
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillRect(10, canvas.height - 30, 350, 25);
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(10, canvas.height - 35, 400, 28);
     ctx.fillStyle = '#aaa';
     ctx.font = '11px Arial';
     ctx.textAlign = 'left';
-    ctx.fillText('🖱️ Click thành phố → Xây dựng | Click thành phố khác → Xâm chiếm', 20, canvas.height - 10);
+    ctx.fillText('🖱️ Click: Chọn | Click phải: Xây dựng | Click thành phố khác: Tấn công', 20, canvas.height - 14);
 }
 
 // ==================== UI UPDATE ====================
 function updateUI() {
-    if (!playerId) return;
+    if (!playerId || !gameState.players[playerId]) return;
     
     const player = gameState.players[playerId];
-    if (!player) return;
     
     document.getElementById('player-name-display').textContent = `👑 ${player.name}`;
     document.getElementById('gold-display').textContent = Math.floor(player.gold || 0);
@@ -808,7 +1002,7 @@ function updateUI() {
     }
     document.getElementById('army-display').textContent = Math.floor(totalArmy);
     
-    // Chính sách hiện tại
+    // Chính sách
     const policyDisplay = document.getElementById('current-policy');
     if (player.policy) {
         const policy = POLICIES[player.policy];
@@ -824,21 +1018,68 @@ function updatePlayerList() {
     
     list.innerHTML = '<div style="color:#888;font-size:12px;text-align:center;margin-bottom:8px;">👥 Người chơi</div>';
     
-    Object.values(gameState.players).forEach(player => {
+    // Sắp xếp theo điểm
+    const sortedPlayers = Object.values(gameState.players).sort((a, b) => (b.score || 0) - (a.score || 0));
+    
+    sortedPlayers.forEach(player => {
+        const cityCount = gameState.cities.filter(c => c.owner === player.id).length;
+        const isMe = player.id === playerId;
         const div = document.createElement('div');
         div.className = 'player-item';
         div.style.borderLeftColor = player.color;
-        const cityCount = gameState.cities.filter(c => c.owner === player.id).length;
+        div.style.background = isMe ? 'rgba(255,215,0,0.1)' : 'transparent';
         div.innerHTML = `
             <span style="color: ${player.color};">●</span>
-            ${player.isAlive ? '🟢' : '💀'} ${player.name}
-            <span style="font-size:11px;color:#888;">
+            ${player.isAlive ? '🟢' : '💀'} 
+            <strong>${player.name}</strong> ${isMe ? '⭐' : ''}
+            <span style="font-size:10px;color:#888;">
                 🏙️${cityCount} 💰${Math.floor(player.gold || 0)}
                 ${player.score ? `⭐${player.score}` : ''}
             </span>
         `;
         list.appendChild(div);
     });
+}
+
+function updateChat() {
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    if (gameState.messages) {
+        gameState.messages.slice(-30).forEach(msg => {
+            const div = document.createElement('div');
+            div.className = 'chat-message';
+            if (msg.type === 'system') {
+                div.style.color = '#ffd700';
+                div.style.fontStyle = 'italic';
+                div.textContent = `📢 ${msg.text}`;
+            } else {
+                const player = gameState.players[msg.playerId];
+                const color = player ? player.color : '#fff';
+                div.innerHTML = `<span style="color: ${color};">${msg.playerName}:</span> ${msg.text}`;
+            }
+            container.appendChild(div);
+        });
+        container.scrollTop = container.scrollHeight;
+    }
+}
+
+function sendChatMessage() {
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    if (!text || !playerId) return;
+    
+    const msg = {
+        playerId: playerId,
+        playerName: playerName,
+        text: text,
+        time: Date.now(),
+        type: 'chat',
+    };
+    
+    gameRef.child('messages').push(msg);
+    input.value = '';
 }
 
 // ==================== SỰ KIỆN CHUỘT ====================
@@ -865,8 +1106,28 @@ function setupEvents() {
             selectedCity = null;
             document.getElementById('info-content').innerHTML = `
                 <p style="color:#888;">Click vào thành phố để quản lý</p>
-                <p style="font-size:11px;color:#555;">📍 Click phải để mở menu</p>
+                <p style="font-size:11px;color:#555;">📌 Click phải để mở menu xây dựng</p>
             `;
+            render();
+            return;
+        }
+        
+        // Xử lý chọn thành phố
+        if (selectedCity && selectedCity.id === clickedCity.id) {
+            // Click lại cùng thành phố -> mở menu
+            showCityMenu(clickedCity);
+            render();
+            return;
+        }
+        
+        // Nếu đã chọn 1 thành phố của mình và click vào thành phố khác -> tấn công
+        if (selectedCity && selectedCity.owner === playerId && clickedCity.owner !== playerId) {
+            const units = prompt(`⚔️ Nhập số quân tấn công ${clickedCity.name}:`, Math.floor(selectedCity.army / 2));
+            if (units && !isNaN(units) && parseInt(units) > 0) {
+                invadeCity(selectedCity.id, clickedCity.id, parseInt(units));
+            }
+            selectedCity = clickedCity;
+            showCityMenu(clickedCity);
             render();
             return;
         }
@@ -879,12 +1140,19 @@ function setupEvents() {
     // Click phải - menu xây dựng
     canvas.addEventListener('contextmenu', (e) => {
         e.preventDefault();
-        if (!selectedCity) return;
-        
+        if (!selectedCity) {
+            alert('🏗️ Vui lòng chọn một thành phố trước!');
+            return;
+        }
+        if (selectedCity.owner !== playerId) {
+            alert('❌ Đây không phải thành phố của bạn!');
+            return;
+        }
         showBuildMenu(selectedCity);
     });
 }
 
+// ==================== MENU HIỂN THỊ ====================
 function showCityMenu(city) {
     const owner = city.owner ? gameState.players[city.owner] : null;
     const isMine = city.owner === playerId;
@@ -892,23 +1160,25 @@ function showCityMenu(city) {
     
     let html = `
         <h4 style="color:#ffd700;">🏙️ ${city.name}</h4>
-        <p><strong>Quốc gia:</strong> ${owner ? owner.name : 'Trống'}</p>
+        <p><strong>Quốc gia:</strong> ${owner ? owner.name : '🌿 Trống'}</p>
         <p><strong>Quân đội:</strong> ⚔️ ${Math.floor(city.army)}</p>
         <p><strong>Vàng:</strong> 💰 ${Math.floor(city.gold || 0)}</p>
         <p><strong>Phòng thủ:</strong> 🛡️ ${Math.floor(city.defense || 10)}</p>
         <p><strong>Dân số:</strong> 👨‍👩‍👧‍👦 ${Math.floor(city.population || 1000)}</p>
         ${city.isCapital ? '<p style="color:#ffd700;">⭐ Thủ đô</p>' : ''}
+        ${city.culture ? `<p><strong>Văn hóa:</strong> <span style="color:${city.cultureColor};">${city.culture}</span></p>` : ''}
     `;
     
     // Công trình
     if (city.buildings && city.buildings.length > 0) {
-        html += '<hr><p style="color:#4ade80;">🏗️ Công trình:</p>';
+        html += '<hr><p style="color:#4ade80;">🏗️ Công trình:</p><div style="display:flex;flex-wrap:wrap;gap:3px;">';
         city.buildings.forEach(b => {
             const bData = BUILDINGS[b.type];
             if (bData) {
-                html += `<span style="font-size:12px;">${bData.icon} ${bData.name}</span> `;
+                html += `<span style="font-size:12px;background:#1a1a2e;padding:2px 6px;border-radius:4px;">${bData.icon} ${bData.name}</span> `;
             }
         });
+        html += '</div>';
     }
     
     if (isMine) {
@@ -916,41 +1186,41 @@ function showCityMenu(city) {
             <hr>
             <div style="display:flex;flex-direction:column;gap:5px;margin-top:10px;">
                 <button onclick="showBuildMenu(selectedCity)" style="
-                    background:#4ade80;color:#1a1a2e;border:none;padding:6px;border-radius:4px;
+                    background:#4ade80;color:#1a1a2e;border:none;padding:8px;border-radius:4px;
                     cursor:pointer;font-weight:bold;
                 ">
                     🏗️ Xây dựng (Click phải)
                 </button>
-                <button onclick="recruitArmyLocal()" style="
-                    background:#60a5fa;color:#fff;border:none;padding:6px;border-radius:4px;
+                <button onclick="recruitArmy(${city.id})" style="
+                    background:#60a5fa;color:#fff;border:none;padding:8px;border-radius:4px;
                     cursor:pointer;
                 ">
-                    ⚔️ Tuyển quân (20 vàng)
+                    ⚔️ Tuyển quân (~20 vàng)
                 </button>
                 <button onclick="showPolicyMenu()" style="
-                    background:#a78bfa;color:#fff;border:none;padding:6px;border-radius:4px;
+                    background:#a78bfa;color:#fff;border:none;padding:8px;border-radius:4px;
                     cursor:pointer;
                 ">
                     📜 Chính trị
                 </button>
                 <button onclick="showTechMenu()" style="
-                    background:#fbbf24;color:#1a1a2e;border:none;padding:6px;border-radius:4px;
+                    background:#fbbf24;color:#1a1a2e;border:none;padding:8px;border-radius:4px;
                     cursor:pointer;
                 ">
                     🔬 Công nghệ
                 </button>
             </div>
         `;
-    } else if (city.owner && owner) {
+    } else if (city.owner && owner && city.owner !== playerId) {
         // Thành phố của người khác
         if (player && player.isAlive) {
             html += `
                 <hr>
                 <button onclick="prepareInvasion()" style="
-                    background:#e94560;color:#fff;border:none;padding:8px;border-radius:4px;
+                    background:#e94560;color:#fff;border:none;padding:10px;border-radius:4px;
                     cursor:pointer;width:100%;font-weight:bold;
                 ">
-                    ⚔️ Xâm chiếm (Chọn quân)
+                    ⚔️ Xâm chiếm
                 </button>
             `;
         }
@@ -972,7 +1242,12 @@ function showBuildMenu(city) {
     
     Object.keys(BUILDINGS).forEach(key => {
         const b = BUILDINGS[key];
-        const canAfford = player.gold >= b.cost;
+        let cost = b.cost;
+        if (player.technology && player.technology.science) {
+            cost *= (1 - player.technology.science * 0.05);
+        }
+        cost = Math.floor(cost);
+        const canAfford = player.gold >= cost;
         html += `
             <button onclick="buildBuilding(${city.id}, '${key}')" style="
                 background:${canAfford ? '#2d2d4e' : '#1a1a2e'};
@@ -982,7 +1257,8 @@ function showBuildMenu(city) {
                 font-size:11px;
             ">
                 ${b.icon} ${b.name}
-                <br><span style="font-size:9px;">💰${b.cost}</span>
+                <br><span style="font-size:9px;">💰${cost}</span>
+                <br><span style="font-size:8px;color:#888;">${b.effect}</span>
             </button>
         `;
     });
@@ -1000,22 +1276,24 @@ function showPolicyMenu() {
         <p>💰 Vàng: ${Math.floor(player.gold)}</p>
         <p>Hiện tại: ${player.policy ? POLICIES[player.policy].name : 'Chưa có'}</p>
         <hr>
-        <div style="display:flex;flex-direction:column;gap:5px;">
+        <div style="display:flex;flex-direction:column;gap:5px;max-height:300px;overflow-y:auto;">
     `;
     
     Object.keys(POLICIES).forEach(key => {
         const p = POLICIES[key];
         const canAfford = player.gold >= p.cost;
+        const isActive = player.policy === key;
         html += `
             <button onclick="changePolicy('${key}')" style="
-                background:${canAfford ? '#2d2d4e' : '#1a1a2e'};
-                color:${canAfford ? '#fff' : '#555'};
-                border:1px solid ${canAfford ? '#a78bfa' : '#333'};
+                background:${isActive ? '#4ade80' : (canAfford ? '#2d2d4e' : '#1a1a2e')};
+                color:${isActive ? '#1a1a2e' : (canAfford ? '#fff' : '#555')};
+                border:2px solid ${isActive ? '#4ade80' : (canAfford ? '#a78bfa' : '#333')};
                 padding:8px;border-radius:4px;cursor:${canAfford ? 'pointer' : 'not-allowed'};
                 text-align:left;
             ">
-                ${p.icon} ${p.name} - 💰${p.cost}
+                ${p.icon} ${p.name} ${isActive ? '✅' : ''}
                 <br><span style="font-size:10px;color:#888;">${p.effect}</span>
+                <br><span style="font-size:9px;">💰${p.cost}</span>
             </button>
         `;
     });
@@ -1032,7 +1310,7 @@ function showTechMenu() {
         <h4 style="color:#fbbf24;">🔬 Công nghệ</h4>
         <p>💰 Vàng: ${Math.floor(player.gold)}</p>
         <hr>
-        <div style="display:flex;flex-direction:column;gap:5px;">
+        <div style="display:flex;flex-direction:column;gap:5px;max-height:300px;overflow-y:auto;">
     `;
     
     Object.keys(TECHNOLOGIES).forEach(key => {
@@ -1048,8 +1326,9 @@ function showTechMenu() {
                 padding:8px;border-radius:4px;cursor:${canAfford && !isMax ? 'pointer' : 'not-allowed'};
                 text-align:left;
             ">
-                ${t.name} - Cấp ${t.level}/${t.maxLevel}
-                <br><span style="font-size:10px;color:#888;">${t.effect} | 💰${cost}</span>
+                ${t.icon} ${t.name} - Cấp ${t.level}/${t.maxLevel}
+                <br><span style="font-size:10px;color:#888;">${t.effect}</span>
+                <br><span style="font-size:9px;">💰${cost}</span>
                 ${isMax ? ' ✅ MAX' : ''}
             </button>
         `;
@@ -1066,8 +1345,8 @@ function prepareInvasion() {
     const player = gameState.players[playerId];
     if (!player) return;
     
-    // Tìm thành phố của mình gần nhất
-    let myCities = gameState.cities.filter(c => c.owner === playerId);
+    // Tìm thành phố của mình
+    let myCities = gameState.cities.filter(c => c.owner === playerId && c.id !== city.id);
     if (myCities.length === 0) {
         alert('❌ Bạn không có thành phố nào để gửi quân!');
         return;
@@ -1080,13 +1359,12 @@ function prepareInvasion() {
     `;
     
     myCities.forEach(c => {
-        if (c.id === city.id) return;
         html += `
             <button onclick="showInvasionAmount(${c.id}, ${city.id})" style="
                 background:#2d2d4e;color:#fff;border:1px solid #e94560;
                 padding:8px;border-radius:4px;cursor:pointer;text-align:left;
             ">
-                🏙️ ${c.name} - ⚔️${Math.floor(c.army)}
+                🏙️ ${c.name} - ⚔️${Math.floor(c.army)} 💰${Math.floor(c.gold || 0)}
             </button>
         `;
     });
@@ -1131,38 +1409,6 @@ function executeInvasion(fromCityId, toCityId) {
     invadeCity(fromCityId, toCityId, units);
 }
 
-function recruitArmyLocal() {
-    if (!selectedCity) return;
-    recruitArmy(selectedCity.id);
-}
-
-function recruitArmy(cityId) {
-    if (!playerId) return;
-    
-    const player = gameState.players[playerId];
-    if (!player) return;
-    
-    const city = gameState.cities.find(c => c.id === cityId);
-    if (!city || city.owner !== playerId) return;
-    
-    const cost = 20;
-    if (player.gold < cost) {
-        alert(`❌ Không đủ vàng! Cần ${cost}`);
-        return;
-    }
-    
-    player.gold -= cost;
-    city.army += 5;
-    
-    gameRef.child('players').child(playerId).update({ gold: player.gold });
-    updateCity(city);
-    
-    alert('✅ Tuyển được 5 quân!');
-    showCityMenu(city);
-    updateUI();
-    render();
-}
-
 // ==================== GLOBAL FUNCTIONS ====================
 window.buildBuilding = buildBuilding;
 window.changePolicy = changePolicy;
@@ -1175,18 +1421,17 @@ window.showTechMenu = showTechMenu;
 window.prepareInvasion = prepareInvasion;
 window.showInvasionAmount = showInvasionAmount;
 window.executeInvasion = executeInvasion;
-window.recruitArmyLocal = recruitArmyLocal;
+window.sendChatMessage = sendChatMessage;
 window.selectedCity = () => selectedCity;
 
 // ==================== KHỞI TẠO ====================
 window.onload = function() {
+    console.log('🎮 RTS Full đang khởi tạo...');
     setupEvents();
     loadMap();
     
-    // Chat
+    // Chat Enter
     document.getElementById('chat-input')?.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') sendChatMessage();
     });
 };
-
-console.log('🎮 RTS Full đang khởi tạo...');
