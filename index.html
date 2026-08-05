@@ -47,22 +47,33 @@
             }
         }
         
-        /* Custom scrollbar for modals */
-        ::-webkit-scrollbar {
-            width: 4px;
+        /* Cho phép cuộn cảm ứng mượt trên Mobile */
+        .custom-scroll {
+            touch-action: pan-y !important;
+            overflow-y: auto !important;
+            -webkit-overflow-scrolling: touch;
         }
-        ::-webkit-scrollbar-track {
-            background: rgba(0,0,0,0.2);
+        
+        /* Custom scrollbar */
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
         }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(255,255,255,0.2);
-            border-radius: 2px;
+        .custom-scroll::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.3);
+            border-radius: 4px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.5);
+            border-radius: 4px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.8);
         }
     </style>
 </head>
 <body>
 
-    <!-- Màn hình cảnh báo xoay ngang màn hình (Chỉ hiện trên thiết bị di động khi xoay đứng) -->
+    <!-- Màn hình cảnh báo xoay ngang màn hình (Chỉ hiện trên di động khi xoay đứng) -->
     <div id="portrait-warning" class="fixed inset-0 z-50 bg-gray-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
         <div class="w-16 h-16 mb-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-3xl animate-bounce">
             📲
@@ -109,40 +120,41 @@
         </div>
     </div>
 
-    <!-- Modal Danh Sách 10 Quốc Gia & 10 Liên Minh -->
-    <div id="nations-list-modal" class="hidden absolute inset-0 z-40 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-        <div class="bg-gray-900 border border-indigo-500/30 w-full max-w-4xl max-h-[85vh] rounded-2xl p-4 flex flex-col shadow-2xl">
-            <div class="flex justify-between items-center border-b border-gray-800 pb-3 mb-3">
+    <!-- Modal Danh Sách 10 Quốc Gia & 10 Liên Minh (Đã hỗ trợ cuộn trượt chuẩn) -->
+    <div id="nations-list-modal" class="hidden absolute inset-0 z-40 bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4">
+        <div class="bg-gray-900 border border-indigo-500/40 w-full max-w-4xl h-[90vh] rounded-2xl p-3 sm:p-4 flex flex-col shadow-2xl overflow-hidden">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center border-b border-gray-800 pb-2.5 mb-2.5 shrink-0">
                 <div>
-                    <h2 class="text-base font-bold text-white flex items-center gap-2">
+                    <h2 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
                         <span>🏛️</span>
                         <span>DANH SÁCH 10 QUỐC GIA & BẢNG LIÊN MINH BẢN ĐỒ</span>
                     </h2>
-                    <p class="text-xs text-gray-400 mt-0.5">Mọi quốc gia và đất trung lập hiện tại đều độc lập (Chưa gia nhập Liên minh)</p>
+                    <p class="text-[11px] text-gray-400 mt-0.5">Mọi quốc gia và đất trung lập hiện tại đều độc lập (Chưa gia nhập Liên minh)</p>
                 </div>
-                <button id="btn-close-nations-modal" class="text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold">✕</button>
+                <button id="btn-close-nations-modal" class="text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shrink-0">✕</button>
             </div>
 
-            <!-- Tab Switcher -->
-            <div class="flex gap-2 mb-3 border-b border-gray-800 pb-2">
-                <button id="tab-btn-nations" class="bg-indigo-600 text-white font-bold text-xs px-3 py-1.5 rounded-lg">10 Quốc Gia (Chỉ Số)</button>
-                <button id="tab-btn-alliances" class="bg-gray-800 text-gray-400 hover:text-white font-bold text-xs px-3 py-1.5 rounded-lg">10 Khối Liên Minh Danh Nghĩa</button>
+            <!-- Tab Switcher Header -->
+            <div class="flex gap-2 mb-2.5 border-b border-gray-800 pb-2 shrink-0">
+                <button id="tab-btn-nations" class="bg-indigo-600 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition">10 Quốc Gia (Chỉ Số)</button>
+                <button id="tab-btn-alliances" class="bg-gray-800 text-gray-400 hover:text-white font-bold text-xs px-3 py-1.5 rounded-lg transition">10 Khối Liên Minh Danh Nghĩa</button>
             </div>
 
-            <!-- Content Tab 1: 10 Quốc Gia -->
-            <div id="tab-content-nations" class="flex-1 overflow-y-auto space-y-2 pr-1">
+            <!-- Content Tab 1: 10 Quốc Gia (Có cuộn dọc) -->
+            <div id="tab-content-nations" class="custom-scroll flex-1 pr-1 space-y-2">
                 <!-- Static Nation cards inserted by JS -->
             </div>
 
-            <!-- Content Tab 2: 10 Khối Liên Minh -->
-            <div id="tab-content-alliances" class="hidden flex-1 overflow-y-auto space-y-2 pr-1">
+            <!-- Content Tab 2: 10 Khối Liên Minh (Có cuộn dọc) -->
+            <div id="tab-content-alliances" class="hidden custom-scroll flex-1 pr-1 space-y-2">
                 <!-- Static Alliance list inserted by JS -->
             </div>
         </div>
     </div>
 
     <!-- Bảng Thông Tin Chi Tiết Tỉnh & Thống Kê Quốc Gia Quản Lý -->
-    <div id="province-modal" class="hidden absolute top-12 left-3 z-40 w-80 max-h-[82vh] overflow-y-auto bg-gray-900/95 backdrop-blur-md border border-indigo-500/40 rounded-2xl p-3.5 shadow-2xl transition-all">
+    <div id="province-modal" class="hidden absolute top-12 left-3 z-40 w-80 max-h-[82vh] custom-scroll bg-gray-900/95 backdrop-blur-md border border-indigo-500/40 rounded-2xl p-3.5 shadow-2xl transition-all">
         <div class="flex justify-between items-start border-b border-gray-800 pb-2 mb-2">
             <div>
                 <div class="text-[10px] text-indigo-400 font-bold uppercase tracking-wide" id="modal-region-type">Cường Quốc / Tỉnh Lộc</div>
@@ -235,7 +247,7 @@
         const TOTAL_TILES = COLS * ROWS;
         const BASE_HEX_RADIUS = 15;
 
-        // DANH SÁCH 10 KHỐI LIÊN MINH QUỐC TẾ TĨNH (TẤT CẢ QUỐC GIA HIỆN ĐỘC LẬP)
+        // DANH SÁCH 10 KHỐI LIÊN MINH QUỐC TẾ TĨNH
         const ALLIANCES = [
             { id: 1, name: "Tân Hiệp Ước Đại Tây Dương (NATO-X)", desc: "Liên minh quân sự và an ninh hàng hải phía Tây." },
             { id: 2, name: "Khối Liên Minh Bắc Băng Dương", desc: "Hợp tác khai thác tài nguyên và bảo vệ vùng cực." },
@@ -262,15 +274,12 @@
         ];
 
         // 10 QUỐC GIA (CƯỜNG QUỐC 50-75 Ô, TIỂU QUỐC 20-25 Ô)
-        // MẶC ĐỊNH TẤT CẢ QUỐC GIA LÀ ĐỘC LẬP (allianceId: null)
         const NATIONS = [
-            // 4 CƯỜNG QUỐC (50 - 75 Ô TỈNH)
             { id: 10, name: "Red Empire", prefix: "Red", color: "#dc2626", borderHex: "#f87171", isMajor: true, minTiles: 50, maxTiles: 75, startX: 35, startY: 30, gdp: 2450, treasury: 420, happiness: 84, tax: 18.5, welfare: 24, allianceId: null },
             { id: 11, name: "Blue Kingdom", prefix: "Blue", color: "#2563eb", borderHex: "#60a5fa", isMajor: true, minTiles: 50, maxTiles: 75, startX: 135, startY: 30, gdp: 2180, treasury: 380, happiness: 81, tax: 20.0, welfare: 22, allianceId: null },
             { id: 12, name: "Green Republic", prefix: "Green", color: "#059669", borderHex: "#34d399", isMajor: true, minTiles: 50, maxTiles: 75, startX: 50, startY: 55, gdp: 1950, treasury: 310, happiness: 88, tax: 16.5, welfare: 28, allianceId: null },
             { id: 13, name: "Yellow Federation", prefix: "Yellow", color: "#d97706", borderHex: "#fbbf24", isMajor: true, minTiles: 50, maxTiles: 75, startX: 150, startY: 30, gdp: 2300, treasury: 450, happiness: 79, tax: 22.0, welfare: 19, allianceId: null },
 
-            // 6 TIỂU QUỐC (20 - 25 Ô TỈNH)
             { id: 14, name: "Purple State", prefix: "Purple", color: "#7c3aed", borderHex: "#a78bfa", isMajor: false, minTiles: 20, maxTiles: 25, startX: 50, startY: 30, gdp: 680, treasury: 120, happiness: 82, tax: 17.0, welfare: 21, allianceId: null },
             { id: 15, name: "Cyan Duchy", prefix: "Cyan", color: "#0891b2", borderHex: "#22d3ee", isMajor: false, minTiles: 20, maxTiles: 25, startX: 135, startY: 55, gdp: 720, treasury: 150, happiness: 86, tax: 15.0, welfare: 25, allianceId: null },
             { id: 16, name: "Lime Principality", prefix: "Lime", color: "#65a30d", borderHex: "#a3e635", isMajor: false, minTiles: 20, maxTiles: 25, startX: 35, startY: 55, gdp: 540, treasury: 95, happiness: 80, tax: 19.0, welfare: 20, allianceId: null },
@@ -378,7 +387,6 @@
             provinceNum.fill(0);
             borderFlag.fill(0);
 
-            // 1. Phân chia 8 Vùng Biển
             for (let r = 0; r < ROWS; r++) {
                 for (let c = 0; c < COLS; c++) {
                     const idx = r * COLS + c;
@@ -396,7 +404,6 @@
                 }
             }
 
-            // 2. Mở rộng Lục Địa Rộng Hơn
             const continentSeeds = [
                 { c: 45, r: 40, radius: 32 },
                 { c: 135, r: 40, radius: 32 },
@@ -409,19 +416,17 @@
                     for (let c = 0; c < COLS; c++) {
                         const dist = Math.hypot(c - seed.c, r - seed.r);
                         if (dist < seed.radius + (Math.sin(c * 0.15) * 4)) {
-                            mapType[r * COLS + c] = 1; // Đất Trung Lập
+                            mapType[r * COLS + c] = 1;
                         }
                     }
                 }
             });
 
-            // 3. Khởi tạo 10 Quốc Gia Giáp Ranh với Quy Mô Tỉnh Mới
             NATIONS.forEach(n => {
                 nationDataMap[n.id] = { ...n, totalPop: 0, totalProvinces: 0 };
                 const startIdx = n.startY * COLS + n.startX;
                 mapType[startIdx] = n.id;
 
-                // Cường quốc: 50-75 ô, Tiểu quốc: 20-25 ô
                 const targetCount = Math.floor(Math.random() * (n.maxTiles - n.minTiles + 1)) + n.minTiles;
                 let claimed = 1;
 
@@ -519,7 +524,6 @@
             }
         }
 
-        // TỔNG HỢP DÂN SỐ TẤT CẢ TỈNH LẠI THÀNH DÂN SỐ QUỐC GIA
         function recalculateNationTotals() {
             NATIONS.forEach(n => {
                 nationDataMap[n.id].totalPop = 0;
@@ -673,7 +677,6 @@
             const provIndEl = document.getElementById('modal-prov-ind');
             const demoContainer = document.getElementById('modal-demographics-bars');
 
-            // Elements dữ liệu quốc gia tổng thể
             const natPopEl = document.getElementById('modal-nat-total-pop');
             const natGdpEl = document.getElementById('modal-nat-gdp');
             const natTreasuryEl = document.getElementById('modal-nat-treasury');
@@ -736,7 +739,6 @@
                 provPopEl.textContent = `${details.pop}M`;
                 provIndEl.textContent = `${details.industry}/100`;
 
-                // Điền thống kê Quốc Gia Tổng
                 natPopEl.textContent = `${nat.totalPop.toFixed(1)}M Dân`;
                 natGdpEl.textContent = `$${nat.gdp.toLocaleString()} Tỷ`;
                 natTreasuryEl.textContent = `$${nat.treasury} Tỷ`;
@@ -744,7 +746,6 @@
                 natTaxEl.textContent = `${nat.tax}%`;
                 natWelEl.textContent = `${nat.welfare}% GDP`;
 
-                // Tất cả quốc gia đều Độc Lập
                 natAllianceTag.textContent = "Độc Lập (Chưa Gia Nhập)";
                 natAllianceTag.className = "text-[9px] text-amber-400 font-semibold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/30";
 
@@ -764,29 +765,27 @@
             modal.classList.remove('hidden');
         }
 
-        // MỞ MODAL 10 QUỐC GIA & 10 LIÊN MINH
         function renderNationsListModal() {
             const containerNations = document.getElementById('tab-content-nations');
             const containerAlliances = document.getElementById('tab-content-alliances');
 
-            // Render Tab 1: 10 Quốc Gia
             containerNations.innerHTML = NATIONS.map(n => {
                 const data = nationDataMap[n.id];
                 return `
-                    <div class="bg-gray-950 p-3 rounded-xl border border-gray-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+                    <div class="bg-gray-950 p-2.5 sm:p-3 rounded-xl border border-gray-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
                         <div class="flex items-center gap-2.5">
-                            <span class="w-4 h-4 rounded-full border border-white/20" style="background-color: ${n.color}"></span>
+                            <span class="w-4 h-4 rounded-full border border-white/20 shrink-0" style="background-color: ${n.color}"></span>
                             <div>
-                                <div class="flex items-center gap-2">
+                                <div class="flex items-center gap-2 flex-wrap">
                                     <h4 class="font-bold text-white text-sm">${n.name}</h4>
                                     <span class="text-[10px] px-2 py-0.5 rounded ${n.isMajor ? 'bg-red-500/20 text-red-300 border border-red-500/30' : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'}">
-                                        ${n.isMajor ? 'Cường Quốc (' + data.totalProvinces + ' Tỉnh)' : 'Tiểu Quốc (' + data.totalProvinces + ' Tỉnh)'}
+                                        ${n.isMajor ? 'Cường Quốc (' + (data ? data.totalProvinces : 0) + ' Tỉnh)' : 'Tiểu Quốc (' + (data ? data.totalProvinces : 0) + ' Tỉnh)'}
                                     </span>
                                 </div>
                                 <div class="text-[11px] text-amber-400 mt-0.5">Trạng thái: <strong>Quốc Gia Độc Lập</strong></div>
                             </div>
                         </div>
-                        <div class="grid grid-cols-3 md:grid-cols-6 gap-2 text-[10px] font-mono w-full md:w-auto bg-gray-900 p-2 rounded-lg border border-gray-800">
+                        <div class="grid grid-cols-3 sm:grid-cols-6 gap-1.5 sm:gap-2 text-[10px] font-mono w-full md:w-auto bg-gray-900 p-2 rounded-lg border border-gray-800 shrink-0">
                             <div><span class="text-gray-500">Dân Số:</span><br><strong class="text-gray-200">${data ? data.totalPop.toFixed(1) : 0}M</strong></div>
                             <div><span class="text-gray-500">GDP:</span><br><strong class="text-emerald-400">$${n.gdp}B</strong></div>
                             <div><span class="text-gray-500">Kho Bạc:</span><br><strong class="text-amber-400">$${n.treasury}B</strong></div>
@@ -798,9 +797,8 @@
                 `;
             }).join('');
 
-            // Render Tab 2: 10 Khối Liên Minh Tĩnh
             containerAlliances.innerHTML = ALLIANCES.map(a => `
-                <div class="bg-gray-950 p-3 rounded-xl border border-gray-800 flex justify-between items-center">
+                <div class="bg-gray-950 p-3 rounded-xl border border-gray-800 flex justify-between items-center gap-2">
                     <div>
                         <div class="flex items-center gap-2">
                             <span class="text-sm">🛡️</span>
@@ -808,7 +806,7 @@
                         </div>
                         <p class="text-xs text-gray-400 mt-1">${a.desc}</p>
                     </div>
-                    <div class="text-right">
+                    <div class="text-right shrink-0">
                         <span class="text-[10px] bg-gray-800 text-gray-400 px-2.5 py-1 rounded-full border border-gray-700">Chưa Có Thành Viên</span>
                     </div>
                 </div>
@@ -817,19 +815,18 @@
             document.getElementById('nations-list-modal').classList.remove('hidden');
         }
 
-        // Bắt sự kiện Tab
         document.getElementById('tab-btn-nations').addEventListener('click', () => {
             document.getElementById('tab-content-nations').classList.remove('hidden');
             document.getElementById('tab-content-alliances').classList.add('hidden');
-            document.getElementById('tab-btn-nations').className = "bg-indigo-600 text-white font-bold text-xs px-3 py-1.5 rounded-lg";
-            document.getElementById('tab-btn-alliances').className = "bg-gray-800 text-gray-400 hover:text-white font-bold text-xs px-3 py-1.5 rounded-lg";
+            document.getElementById('tab-btn-nations').className = "bg-indigo-600 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition";
+            document.getElementById('tab-btn-alliances').className = "bg-gray-800 text-gray-400 hover:text-white font-bold text-xs px-3 py-1.5 rounded-lg transition";
         });
 
         document.getElementById('tab-btn-alliances').addEventListener('click', () => {
             document.getElementById('tab-content-alliances').classList.remove('hidden');
             document.getElementById('tab-content-nations').classList.add('hidden');
-            document.getElementById('tab-btn-alliances').className = "bg-indigo-600 text-white font-bold text-xs px-3 py-1.5 rounded-lg";
-            document.getElementById('tab-btn-nations').className = "bg-gray-800 text-gray-400 hover:text-white font-bold text-xs px-3 py-1.5 rounded-lg";
+            document.getElementById('tab-btn-alliances').className = "bg-indigo-600 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition";
+            document.getElementById('tab-btn-nations').className = "bg-gray-800 text-gray-400 hover:text-white font-bold text-xs px-3 py-1.5 rounded-lg transition";
         });
 
         document.getElementById('btn-toggle-nations-list').addEventListener('click', renderNationsListModal);
@@ -922,4 +919,3 @@
     </script>
 </body>
 </html>
-
