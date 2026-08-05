@@ -1,22 +1,22 @@
 {
-"name": "Bản Đồ Địa Lý 12,000 Ô",
-"short_name": "AoH minigame",
-"description": "Ứng dụng Bản Đồ Địa Lý 12,000 Ô tương tác đa nền tảng cho PC, Laptop và Mobile Web App PWA",
-"start_url": "./index.html",
-"display": "standalone",
-"orientation": "landscape",
-"background_color": "#030712",
-"theme_color": "#030712",
-"icons": [
-{
-"src": "https://cdn-icons-png.flaticon.com/512/854/854878.png",
-"sizes": "192x192",
-"type": "image/png"
-},
-{
-"src": "https://cdn-icons-png.flaticon.com/512/854/854878.png",
-"sizes": "512x512",
-"type": "image/png"
-}
-]
+  "name": "Bản Đồ Thống Kê Quốc Gia PWA",
+  "short_name": "AoH minigame",
+  "description": "Bản Đồ Địa Lý & Tra Cứu Chỉ Số Quốc Gia 18000 Ô",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#030712",
+  "theme_color": "#030712",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/854/854878.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/854/854878.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
 }
