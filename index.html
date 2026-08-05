@@ -3,19 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>🌍 Age of History - Real-time Strategy</title>
+    <title>🌍 Age of History - Multiplayer</title>
     
-    <!-- CSS -->
     <link rel="stylesheet" href="css/style.css">
-    
-    <!-- PWA -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#030712">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
-    <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 </head>
 <body>
 
@@ -25,7 +25,6 @@
         <h2 class="text-lg font-bold text-indigo-400 mb-2">VUI LÒNG XOAY NGANG ĐIỆN THOẠI</h2>
         <p class="text-sm text-gray-400 max-w-xs">Xoay ngang màn hình để trải nghiệm game tốt nhất</p>
         <div class="mt-6 text-6xl animate-pulse">↻</div>
-        <p class="text-xs text-gray-500 mt-4">(Sau khi xoay, trang sẽ tự động hiển thị)</p>
     </div>
 
     <!-- ====== CANVAS BẢN ĐỒ ====== -->
@@ -50,7 +49,6 @@
             <span class="text-gray-400">👑 <span id="nation-name-display">Red Empire</span></span>
             <span class="w-3 h-3 rounded-full border border-white/20" id="nation-color-display" style="background:#dc2626"></span>
         </div>
-        <!-- Thanh thời gian -->
         <div id="time-bar" class="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-green-500 via-yellow-500 to-red-500 transition-all duration-300" style="width:100%; transform-origin:left; transform:scaleX(1)"></div>
     </div>
 
@@ -70,27 +68,23 @@
     </div>
 
     <!-- ====== MODALS ====== -->
-    <!-- Province Info -->
     <div id="province-modal" class="hidden fixed top-10 left-1 z-50 w-56 max-h-[60vh] overflow-y-auto bg-gray-900/95 backdrop-blur-md border border-indigo-500/40 rounded-2xl p-2.5 shadow-2xl text-[10px]">
         <button id="btn-close-modal" class="absolute top-1 right-2 text-gray-400 hover:text-white text-sm">✕</button>
         <div id="modal-content"></div>
     </div>
 
-    <!-- Build Menu -->
     <div id="build-menu" class="hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-gray-900/95 backdrop-blur-md border border-purple-500/40 rounded-2xl p-3 w-72 max-h-[70vh] overflow-y-auto shadow-2xl">
         <h3 class="text-white font-bold text-sm mb-2">🏗️ XÂY DỰNG</h3>
         <div id="build-list" class="space-y-1"></div>
         <button id="btn-close-build" class="mt-2 px-4 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-white text-xs w-full">Đóng</button>
     </div>
 
-    <!-- Diplomacy Menu -->
     <div id="diplomacy-menu" class="hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-gray-900/95 backdrop-blur-md border border-amber-500/40 rounded-2xl p-3 w-72 max-h-[70vh] overflow-y-auto shadow-2xl">
         <h3 class="text-white font-bold text-sm mb-2">🤝 NGOẠI GIAO</h3>
         <div id="diplomacy-list" class="space-y-1"></div>
         <button id="btn-close-diplomacy" class="mt-2 px-4 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-white text-xs w-full">Đóng</button>
     </div>
 
-    <!-- Nations List -->
     <div id="nations-list-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-2">
         <div class="bg-gray-900 border border-indigo-500/40 w-full max-w-4xl max-h-[85vh] rounded-2xl p-3 overflow-y-auto">
             <div class="flex justify-between items-center border-b border-gray-800 pb-1.5 mb-2">
@@ -101,7 +95,7 @@
         </div>
     </div>
 
-    <!-- Toast -->
+    <!-- ====== TOAST ====== -->
     <div id="toast-container" class="fixed top-10 left-1/2 -translate-x-1/2 z-50 pointer-events-none"></div>
 
     <!-- ====== JAVASCRIPT ====== -->
@@ -112,6 +106,8 @@
     <script src="js/ai.js"></script>
     <script src="js/multiplayer.js"></script>
     <script src="js/ui.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/lobby.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>
