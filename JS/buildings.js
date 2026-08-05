@@ -1,4 +1,3 @@
-
 // === CÔNG TRÌNH ===
 const BUILDINGS = {
     'headquarters': {
