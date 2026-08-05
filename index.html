@@ -1,827 +1,708 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Age of Strategy - AoH Multiplayer</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bản Đồ Địa Lý 12,000 Ô Tĩnh - Tra Cứu Tỉnh Lộc</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #030712;
+            color: #f3f4f6;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
 
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- FontAwesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-  <!-- ===== FIREBASE CONFIG (NHÚNG TRỰC TIẾP) ===== -->
-  <script type="importmap">
-    {
-      "imports": {
-        "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
-        "firebase/database": "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js",
-        "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"
-      }
-    }
-  </script>
-
-  <style>
-    /* Reset & Base */
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    body {
-      user-select: none;
-      -webkit-user-select: none;
-      overflow: hidden;
-      background: #0b1329;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      height: 100vh;
-      width: 100vw;
-      position: fixed;
-      top: 0;
-      left: 0;
-    }
-
-    /* Map Viewport */
-    #map-viewport {
-      width: 100vw;
-      height: 100vh;
-      cursor: grab;
-      overflow: hidden;
-      position: relative;
-      background: #1a3a5a;
-      touch-action: none;
-    }
-    #map-viewport:active {
-      cursor: grabbing;
-    }
-
-    #map-container {
-      transform-origin: 0 0;
-      position: absolute;
-      top: 0;
-      left: 0;
-      will-change: transform;
-    }
-    #map-container svg {
-      width: 100%;
-      height: auto;
-      display: block;
-    }
-
-    /* Province Styles */
-    #map-container path {
-      stroke: #1e293b;
-      stroke-width: 0.7px;
-      transition: fill 0.2s, stroke 0.2s, filter 0.2s;
-      cursor: pointer;
-      vector-effect: non-scaling-stroke;
-    }
-    #map-container path:hover {
-      filter: brightness(1.25);
-      stroke: #ffffff;
-      stroke-width: 1.5px;
-    }
-    #map-container path.selected {
-      stroke: #f59e0b !important;
-      stroke-width: 2.5px !important;
-      filter: brightness(1.3);
-    }
-    #map-container path.target {
-      stroke: #ef4444 !important;
-      stroke-width: 2.5px !important;
-      animation: pulse-red 1s infinite alternate;
-    }
-    @keyframes pulse-red {
-      0% { filter: brightness(1); }
-      100% { filter: brightness(1.6); }
-    }
-
-    /* Scrollbar */
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
-    ::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.5); border-radius: 3px; }
-
-    /* Modal Overlay */
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 1000;
-      background: rgba(0, 0, 0, 0.85);
-      backdrop-filter: blur(8px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.4s ease;
-    }
-    .modal-overlay.active {
-      opacity: 1;
-      pointer-events: auto;
-    }
-    .modal-box {
-      background: #0f1a2e;
-      border: 1px solid #2a3a5a;
-      border-radius: 20px;
-      max-width: 700px;
-      width: 100%;
-      max-height: 90vh;
-      overflow-y: auto;
-      padding: 28px;
-      transform: scale(0.95);
-      transition: transform 0.3s ease;
-    }
-    .modal-overlay.active .modal-box {
-      transform: scale(1);
-    }
-
-    /* Country Card */
-    .country-card {
-      background: #1a2a4a;
-      border: 2px solid transparent;
-      border-radius: 12px;
-      padding: 12px 16px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .country-card:hover {
-      background: #2a3a5a;
-      transform: translateY(-2px);
-    }
-    .country-card.selected {
-      border-color: #f59e0b;
-      background: #2a3a5a;
-      box-shadow: 0 0 20px rgba(245, 158, 11, 0.15);
-    }
-    .country-card.disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-      pointer-events: none;
-    }
-    .country-card .flag-dot {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      border: 2px solid rgba(255, 255, 255, 0.2);
-      flex-shrink: 0;
-    }
-
-    /* Top Bar */
-    .top-bar {
-      position: fixed;
-      top: 12px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 100;
-      background: rgba(15, 23, 42, 0.92);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 16px;
-      padding: 8px 16px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 13px;
-      color: #e2e8f0;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-      flex-wrap: wrap;
-      justify-content: center;
-      max-width: 95vw;
-    }
-    .top-bar .sep {
-      width: 1px;
-      height: 24px;
-      background: rgba(255, 255, 255, 0.1);
-    }
-    .top-bar .stat {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .top-bar .stat i {
-      font-size: 14px;
-      opacity: 0.7;
-    }
-    .top-bar .stat .value {
-      font-weight: 600;
-    }
-
-    /* Notifications */
-    #notification-container {
-      position: fixed;
-      top: 80px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 200;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      pointer-events: none;
-      max-width: 90vw;
-      width: 500px;
-    }
-    .notification {
-      pointer-events: auto;
-      padding: 12px 20px;
-      border-radius: 12px;
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-      font-size: 14px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      transform: translateY(0);
-      opacity: 1;
-      transition: all 0.4s ease;
-    }
-    .notification.info { background: rgba(30, 58, 95, 0.95); border-color: #3b82f6; }
-    .notification.success { background: rgba(20, 60, 40, 0.95); border-color: #22c55e; }
-    .notification.warning { background: rgba(80, 60, 20, 0.95); border-color: #eab308; }
-    .notification.danger { background: rgba(80, 20, 20, 0.95); border-color: #ef4444; }
-    .notification.fade-out {
-      transform: translateY(-20px);
-      opacity: 0;
-    }
-
-    /* Buttons */
-    .btn-primary {
-      background: linear-gradient(135deg, #f59e0b, #d97706);
-      color: #0f172a;
-      font-weight: 700;
-      padding: 10px 20px;
-      border-radius: 12px;
-      border: none;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .btn-primary:hover {
-      transform: scale(1.02);
-      box-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);
-    }
-    .btn-primary:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
-    }
-
-    .btn-secondary {
-      background: rgba(255, 255, 255, 0.08);
-      color: #e2e8f0;
-      padding: 8px 16px;
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      cursor: pointer;
-      transition: all 0.2s;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.15);
-    }
-
-    .btn-danger {
-      background: linear-gradient(135deg, #dc2626, #b91c1c);
-      color: white;
-      padding: 8px 16px;
-      border-radius: 10px;
-      border: none;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .btn-danger:hover {
-      transform: scale(1.02);
-    }
-
-    /* Province Panel */
-    .province-panel {
-      position: fixed;
-      bottom: 20px;
-      left: 20px;
-      z-index: 50;
-      width: 320px;
-      max-width: calc(100vw - 40px);
-      background: rgba(15, 23, 42, 0.95);
-      backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 16px;
-      padding: 20px;
-      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
-      transform: translateY(calc(100% + 30px));
-      opacity: 0;
-      pointer-events: none;
-      transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-    .province-panel.open {
-      transform: translateY(0);
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    /* Mini Map */
-    #minimap {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      z-index: 40;
-      width: 150px;
-      height: 150px;
-      background: rgba(15, 23, 42, 0.85);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-    }
-    #minimap canvas {
-      width: 100%;
-      height: 100%;
-      display: block;
-    }
-
-    /* Responsive */
-    @media (max-width: 640px) {
-      .top-bar {
-        font-size: 11px;
-        padding: 6px 12px;
-        gap: 8px;
-        top: 8px;
-      }
-      .top-bar .sep { height: 16px; }
-      .province-panel {
-        width: calc(100vw - 30px);
-        bottom: 10px;
-        left: 15px;
-        padding: 16px;
-      }
-      #minimap {
-        width: 100px;
-        height: 100px;
-        bottom: 10px;
-        right: 10px;
-      }
-      .modal-box { padding: 20px; margin: 10px; }
-    }
-  </style>
+        #portrait-warning {
+            display: none;
+        }
+        @media screen and (orientation: portrait) {
+            #portrait-warning {
+                display: flex;
+            }
+        }
+    </style>
 </head>
 <body>
 
-  <!-- ===== LOADING ===== -->
-  <div id="loading" class="fixed inset-0 z-[999] flex items-center justify-center bg-[#0b1329]">
-    <div class="text-center">
-      <div class="w-16 h-16 border-4 border-amber-400/30 border-t-amber-400 rounded-full animate-spin mx-auto mb-4"></div>
-      <p class="text-slate-400 text-sm">Đang tải dữ liệu...</p>
-    </div>
-  </div>
-
-  <!-- ===== MAP VIEWPORT ===== -->
-  <div id="map-viewport">
-    <div id="map-container">
-      <div id="svg-holder"></div>
-    </div>
-  </div>
-
-  <!-- ===== TOP BAR ===== -->
-  <div class="top-bar" id="topBar">
-    <div class="stat">
-      <i class="fa-solid fa-flag text-amber-400"></i>
-      <span id="player-country-display" class="font-medium">---</span>
-    </div>
-    <div class="sep"></div>
-    <div class="stat">
-      <i class="fa-solid fa-coins text-yellow-400"></i>
-      <span class="value text-emerald-400" id="goldDisplay">0</span>
-    </div>
-    <div class="stat">
-      <i class="fa-solid fa-users text-blue-400"></i>
-      <span class="value text-blue-300" id="manpowerDisplay">0</span>
-    </div>
-    <div class="stat">
-      <i class="fa-solid fa-oil-well text-orange-400"></i>
-      <span class="value text-orange-300" id="oilDisplay">0</span>
-    </div>
-    <div class="sep"></div>
-    <div class="stat">
-      <i class="fa-solid fa-hourglass-half text-amber-300"></i>
-      <span>Lượt: <strong id="turnDisplay" class="text-amber-300">0</strong></span>
-    </div>
-    <div class="stat">
-      <i class="fa-solid fa-swords text-red-400"></i>
-      <span class="value text-red-300" id="warCountDisplay">0</span>
-    </div>
-    <div class="sep"></div>
-    <div id="turnIndicator" class="text-xs font-medium text-yellow-400">⏳ Đợi lượt...</div>
-  </div>
-
-  <!-- ===== NOTIFICATIONS ===== -->
-  <div id="notification-container"></div>
-
-  <!-- ===== MINI MAP ===== -->
-  <div id="minimap">
-    <canvas id="minimap-canvas"></canvas>
-  </div>
-
-  <!-- ===== PROVINCE PANEL ===== -->
-  <div id="provincePanel" class="province-panel">
-    <div class="flex justify-between items-start mb-3">
-      <div>
-        <h3 id="province-name" class="font-bold text-lg text-amber-300">Tên tỉnh</h3>
-        <p class="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
-          <span>Chủ sở hữu:</span>
-          <span id="province-owner" class="font-semibold text-slate-200">---</span>
-        </p>
-      </div>
-      <button id="closePanelBtn" class="text-slate-400 hover:text-white p-1">
-        <i class="fa-solid fa-xmark text-xl"></i>
-      </button>
-    </div>
-
-    <div class="grid grid-cols-2 gap-2 mb-4 text-sm">
-      <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
-        <div class="text-slate-400 text-[10px] uppercase tracking-wide">Quân đội</div>
-        <div id="province-troops" class="font-bold text-slate-100 text-lg">0</div>
-      </div>
-      <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
-        <div class="text-slate-400 text-[10px] uppercase tracking-wide">Kinh tế</div>
-        <div id="province-economy" class="font-bold text-slate-100 text-lg">0</div>
-      </div>
-    </div>
-
-    <div id="province-actions" class="flex flex-col gap-2">
-      <button id="btn-recruit" class="btn-primary w-full justify-center text-sm">
-        <i class="fa-solid fa-user-plus"></i> Tuyển quân
-      </button>
-      <button id="btn-develop" class="btn-secondary w-full justify-center text-sm">
-        <i class="fa-solid fa-chart-line"></i> Phát triển kinh tế
-      </button>
-      <button id="btn-attack" class="btn-danger w-full justify-center text-sm">
-        <i class="fa-solid fa-swords"></i> Tấn công
-      </button>
-    </div>
-    <div id="attack-target-hint" class="hidden mt-2 p-2 bg-rose-950/50 border border-rose-800/50 rounded-lg text-xs text-rose-200 text-center">
-      <i class="fa-solid fa-circle-info mr-1"></i> Chọn tỉnh mục tiêu để tấn công
-    </div>
-  </div>
-
-  <!-- ===== SETUP MODAL ===== -->
-  <div id="setupModal" class="modal-overlay active">
-    <div class="modal-box">
-      <div class="text-center mb-6">
-        <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-tr from-amber-500 to-amber-300 text-slate-950 rounded-2xl text-3xl font-black mb-3 shadow-lg shadow-amber-500/20">
-          <i class="fa-solid fa-crown"></i>
+    <!-- Màn hình cảnh báo xoay ngang màn hình -->
+    <div id="portrait-warning" class="fixed inset-0 z-50 bg-gray-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
+        <div class="w-16 h-16 mb-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-3xl animate-bounce">
+            📲
         </div>
-        <h1 class="text-2xl md:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-amber-100">
-          AGE OF STRATEGY
-        </h1>
-        <p class="text-sm text-slate-400 mt-1">Multiplayer - Chinh phục Châu Âu</p>
-      </div>
+        <h2 class="text-base font-bold text-indigo-400 mb-1">VUI LÒNG XOAY NGANG ĐIỆN THOẠI</h2>
+        <p class="text-xs text-gray-400 max-w-xs">Xoay ngang màn hình (Landscape) để quan sát toàn bộ Bản đồ 12,000 ô và kiểm tra thông tin các tỉnh.</p>
+    </div>
 
-      <div class="mb-4">
-        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-          <i class="fa-solid fa-user-shield text-amber-400 mr-1"></i> Tên lãnh tụ
-        </label>
-        <input type="text" id="playerNameInput" value="Napoleon" placeholder="Nhập tên của bạn..." class="w-full bg-slate-800/80 border border-slate-700 focus:border-amber-400 rounded-xl px-4 py-3 text-slate-100 font-medium outline-none transition text-sm">
-      </div>
-
-      <div class="mb-6">
-        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-          <i class="fa-solid fa-flag text-amber-400 mr-1"></i> Chọn quốc gia
-        </label>
-        <div id="country-list" class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
-          <!-- JS sẽ render -->
+    <!-- Thanh trạng thái giao diện tối giản phía trên -->
+    <div class="absolute top-2 left-2 z-20 pointer-events-none flex items-center gap-2">
+        <div class="pointer-events-auto bg-gray-900/90 backdrop-blur-md border border-gray-800/80 px-3 py-1.5 rounded-full flex items-center gap-3 text-xs shadow-2xl">
+            <div class="flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="font-bold text-gray-200">BẢN ĐỒ TĨNH 12,000 Ô (150x80)</span>
+            </div>
+            <span class="text-gray-700">|</span>
+            <div class="text-[11px] text-gray-400">
+                10 Quốc gia • Chạm ô để tra cứu thông tin
+            </div>
+            <span class="text-gray-700">|</span>
+            <div class="text-[11px] text-gray-400">
+                Zoom: <strong id="zoom-text" class="text-indigo-400 font-mono">100%</strong>
+            </div>
         </div>
-      </div>
 
-      <button id="btn-play-now" class="btn-primary w-full justify-center text-base py-3" disabled>
-        <i class="fa-solid fa-play"></i> VÀO GAME NGAY
-      </button>
+        <button id="btn-regen-map" class="pointer-events-auto bg-gray-800 hover:bg-gray-700 active:scale-95 text-gray-300 font-bold text-xs px-3 py-1.5 rounded-full border border-gray-700 shadow-lg">
+            🔄 Tạo Địa Hình Mới
+        </button>
     </div>
-  </div>
 
-  <!-- ===== LOBBY MODAL ===== -->
-  <div id="lobbyModal" class="modal-overlay">
-    <div class="modal-box">
-      <div id="lobbyContent">
-        <!-- JS sẽ render -->
-      </div>
+    <!-- Mini-Map Floating Box (Góc dưới bên phải) -->
+    <div class="absolute bottom-3 right-3 z-30 bg-gray-900/90 border border-gray-700/80 p-1.5 rounded-xl shadow-2xl backdrop-blur-md">
+        <div class="text-[10px] text-gray-400 font-bold mb-1 flex justify-between items-center px-1">
+            <span>🌍 MINI-MAP</span>
+            <span class="text-amber-400 text-[9px]">Bản đồ thu nhỏ</span>
+        </div>
+        <div class="relative overflow-hidden rounded-lg border border-gray-800">
+            <canvas id="miniMapCanvas" width="180" height="96" class="block cursor-pointer active:brightness-125"></canvas>
+        </div>
     </div>
-  </div>
 
-  <!-- ===== DIPLOMACY MODAL ===== -->
-  <div id="diplomacyModal" class="modal-overlay">
-    <div class="modal-box">
-      <div id="diplomacyContent">
-        <!-- JS sẽ render -->
-      </div>
+    <!-- Bảng Thông Tin Chi Tiết Tỉnh (Province Details Inspector Modal) -->
+    <div id="province-modal" class="hidden absolute top-12 left-3 z-40 w-72 bg-gray-900/95 backdrop-blur-md border border-indigo-500/40 rounded-2xl p-3.5 shadow-2xl transition-all">
+        <div class="flex justify-between items-start border-b border-gray-800 pb-2 mb-2.5">
+            <div>
+                <div class="text-xs text-indigo-400 font-semibold tracking-wide uppercase" id="modal-region-type">Lục địa / Tỉnh lộc</div>
+                <h3 class="text-lg font-extrabold text-white" id="modal-prov-name">Red 1</h3>
+            </div>
+            <button id="btn-close-modal" class="text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">✕</button>
+        </div>
+
+        <div class="space-y-2.5 text-xs">
+            <!-- Quốc gia quản lý -->
+            <div class="flex items-center justify-between bg-gray-950/80 p-2 rounded-xl border border-gray-800/80">
+                <span class="text-gray-400">Quốc gia kiểm soát:</span>
+                <div class="flex items-center gap-1.5 font-bold" id="modal-owner-box">
+                    <span class="w-3 h-3 rounded-full border border-white/20" id="modal-owner-color"></span>
+                    <span id="modal-owner-name" class="text-gray-200">Red Empire</span>
+                </div>
+            </div>
+
+            <!-- Chỉ số Dân số & Công nghiệp -->
+            <div class="grid grid-cols-2 gap-2">
+                <div class="bg-gray-950/80 p-2 rounded-xl border border-gray-800/80 text-center">
+                    <div class="text-[10px] text-gray-400">👥 Dân Số</div>
+                    <div class="text-sm font-extrabold text-amber-400 font-mono mt-0.5" id="modal-population">1.25 M</div>
+                </div>
+                <div class="bg-gray-950/80 p-2 rounded-xl border border-gray-800/80 text-center">
+                    <div class="text-[10px] text-gray-400">🏭 Công Nghiệp</div>
+                    <div class="text-sm font-extrabold text-emerald-400 font-mono mt-0.5" id="modal-industry">78/100</div>
+                </div>
+            </div>
+
+            <!-- Cơ cấu Sắc tộc / Dân số (%) -->
+            <div class="bg-gray-950/80 p-2.5 rounded-xl border border-gray-800/80">
+                <div class="text-[11px] font-bold text-gray-300 mb-1.5 flex justify-between">
+                    <span>Cơ Cấu Thành Phần Dân Cư:</span>
+                </div>
+                <div id="modal-demographics-bars" class="space-y-1.5">
+                    <!-- Progress bars injected by JS -->
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
 
-  <!-- ===== TECH MODAL ===== -->
-  <div id="techModal" class="modal-overlay">
-    <div class="modal-box">
-      <div id="techContent">
-        <!-- JS sẽ render -->
-      </div>
-    </div>
-  </div>
+    <!-- Canvas World Map Chính -->
+    <canvas id="worldMapCanvas" class="w-full h-full block cursor-grab active:cursor-grabbing"></canvas>
 
-  <!-- ===== RECRUIT MODAL ===== -->
-  <div id="recruitModal" class="modal-overlay">
-    <div class="modal-box">
-      <div id="recruitContent">
-        <!-- JS sẽ render -->
-      </div>
-    </div>
-  </div>
+    <!-- World Map Logic Script -->
+    <script>
+        // --- CẤU HÌNH BẢN ĐỒ (150 x 80 = 12,000 Ô) ---
+        const COLS = 150;
+        const ROWS = 80;
+        const TOTAL_TILES = COLS * ROWS;
+        const BASE_HEX_RADIUS = 15;
 
-  <!-- ===== PEACE MODAL ===== -->
-  <div id="peaceModal" class="modal-overlay">
-    <div class="modal-box">
-      <div id="peaceContent">
-        <!-- JS sẽ render -->
-      </div>
-    </div>
-  </div>
+        // 8 Vùng Biển / Đại Dương
+        const SEA_ZONES = [
+            { id: 1, name: "Bắc Thái Bình Dương", color: "#0c1e36", border: "#162e4d" },
+            { id: 2, name: "Nam Thái Bình Dương", color: "#091b30", border: "#122742" },
+            { id: 3, name: "Bắc Đại Tây Dương", color: "#0d223a", border: "#183352" },
+            { id: 4, name: "Nam Đại Tây Dương", color: "#0a1d33", border: "#132a45" },
+            { id: 5, name: "Ấn Độ Dương", color: "#0b253c", border: "#153554" },
+            { id: 6, name: "Bắc Băng Dương", color: "#102a45", border: "#1a3b5e" },
+            { id: 7, name: "Nam Băng Dương", color: "#0a2138", border: "#14314f" },
+            { id: 8, name: "Biển Trung Địa", color: "#0e243d", border: "#193759" }
+        ];
 
-  <!-- ===== GAME.JS ===== -->
-  <script type="importmap">
-    {
-      "imports": {
-        "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
-        "firebase/database": "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js",
-        "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"
-      }
-    }
-  </script>
-  <script type="module">
-    // ============================================================
-    // IMPORT GAME.JS TỪ RAW LINK
-    // ============================================================
-    const gameModule = await import('https://raw.githubusercontent.com/worldoftankblizt1234-wq/Json/refs/heads/main/game.js');
+        // 10 Quốc gia giáp ranh
+        const NATIONS = [
+            // Cường quốc
+            { id: 10, name: "Red Empire", prefix: "Red", color: "#dc2626", borderHex: "#f87171", isMajor: true, startX: 30, startY: 25 },
+            { id: 11, name: "Blue Kingdom", prefix: "Blue", color: "#2563eb", borderHex: "#60a5fa", isMajor: true, startX: 110, startY: 25 },
+            { id: 12, name: "Green Republic", prefix: "Green", color: "#059669", borderHex: "#34d399", isMajor: true, startX: 42, startY: 38 },
+            { id: 13, name: "Yellow Federation", prefix: "Yellow", color: "#d97706", borderHex: "#fbbf24", isMajor: true, startX: 122, startY: 25 },
 
-    // ============================================================
-    // KẾT NỐI CÁC HÀM TỪ GAME.JS VÀO WINDOW
-    // ============================================================
-    window.loginWithNickname = gameModule.loginWithNickname;
-    window.createGame = gameModule.createGame;
-    window.joinGame = gameModule.joinGame;
-    window.toggleReady = gameModule.toggleReady;
-    window.startGame = gameModule.startGame;
-    window.leaveGame = gameModule.leaveGame;
-    window.showDiplomacy = gameModule.showDiplomacy;
-    window.showTechTree = gameModule.showTechTree;
-    window.showRecruitMenu = gameModule.showRecruitMenu;
-    window.recruitUnits = gameModule.recruitUnits;
-    window.researchTech = gameModule.researchTech;
-    window.declareWar = gameModule.declareWar;
-    window.formAlliance = gameModule.formAlliance;
-    window.breakAlliance = gameModule.breakAlliance;
-    window.tradeAgreement = gameModule.tradeAgreement;
-    window.cancelTrade = gameModule.cancelTrade;
-    window.imposeSanctions = gameModule.imposeSanctions;
-    window.peaceNegotiation = gameModule.peaceNegotiation;
-    window.proposePeace = gameModule.proposePeace;
-    window.acceptPeace = gameModule.acceptPeace;
-    window.closeModal = gameModule.closeModal;
+            // Tiểu quốc
+            { id: 14, name: "Purple State", prefix: "Purple", color: "#7c3aed", borderHex: "#a78bfa", isMajor: false, startX: 42, startY: 25 },
+            { id: 15, name: "Cyan Duchy", prefix: "Cyan", color: "#0891b2", borderHex: "#22d3ee", isMajor: false, startX: 110, startY: 38 },
+            { id: 16, name: "Lime Principality", prefix: "Lime", color: "#65a30d", borderHex: "#a3e635", isMajor: false, startX: 30, startY: 38 },
+            { id: 17, name: "Rose Island", prefix: "Rose", color: "#e11d48", borderHex: "#fb7185", isMajor: false, startX: 75, startY: 60 },
+            { id: 18, name: "Orange Domain", prefix: "Orange", color: "#ea580c", borderHex: "#fb923c", isMajor: false, startX: 122, startY: 38 },
+            { id: 19, name: "Violet Realm", prefix: "Violet", color: "#9333ea", borderHex: "#c084fc", isMajor: false, startX: 75, startY: 40 }
+        ];
 
-    // ============================================================
-    // LẤY DỮ LIỆU TỪ GAME.JS
-    // ============================================================
-    const { COUNTRIES, GameData, CONFIG } = gameModule;
+        // Mảng lưu dữ liệu Tĩnh của 12,000 ô
+        let mapType = new Uint8Array(TOTAL_TILES);      // 0 = Biển, 1 = Đất Trung Lập, 10..19 = Quốc gia
+        let seaZoneId = new Uint8Array(TOTAL_TILES);    // ID Vùng biển
+        let provinceNum = new Uint16Array(TOTAL_TILES); // Số Tỉnh (Red 1, Red 2,...)
+        let borderFlag = new Uint8Array(TOTAL_TILES);   // Viền biên giới
+        
+        // Dữ liệu chi tiết cho từng ô (Dân số, Công nghiệp, Cơ cấu dân cư)
+        let provinceDetails = new Array(TOTAL_TILES);
+        let nationDataMap = {};
 
-    // ============================================================
-    // RENDER DANH SÁCH QUỐC GIA
-    // ============================================================
-    function renderCountryList() {
-      const container = document.getElementById('country-list');
-      container.innerHTML = '';
+        // Camera & Control Variables
+        let cameraX = 0;
+        let cameraY = 0;
+        let zoom = 0.85;
+        let selectedHexIndex = -1;
 
-      Object.entries(COUNTRIES).forEach(([code, country]) => {
-        const card = document.createElement('div');
-        card.className = 'country-card';
-        card.dataset.country = code;
+        let isDragging = false;
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let initialPinchDist = null;
 
-        const isSelected = GameData.selectedCountries?.includes(code);
-        if (isSelected) card.classList.add('disabled');
+        const canvas = document.getElementById('worldMapCanvas');
+        const ctx = canvas.getContext('2d');
 
-        card.innerHTML = `
-          <span class="flag-dot" style="background:${country.color}"></span>
-          <div class="flex-1">
-            <div class="font-semibold text-sm">${country.name}</div>
-            <div class="text-xs text-slate-400">${country.regions || 0} tỉnh</div>
-          </div>
-          ${isSelected ? '<i class="fa-solid fa-lock text-slate-500"></i>' : '<i class="fa-regular fa-circle-check text-slate-600"></i>'}
-        `;
+        const miniCanvas = document.getElementById('miniMapCanvas');
+        const miniCtx = miniCanvas.getContext('2d');
 
-        if (!isSelected) {
-          card.addEventListener('click', () => {
-            document.querySelectorAll('.country-card').forEach(c => c.classList.remove('selected'));
-            card.classList.add('selected');
-            document.getElementById('btn-play-now').disabled = false;
-          });
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            clampCamera();
         }
 
-        container.appendChild(card);
-      });
-    }
+        // --- KHÓA RÃNH RẠN BOUNDARY CAMERA (Không kéo quá map) ---
+        function clampCamera() {
+            const radius = BASE_HEX_RADIUS * zoom;
+            const totalWorldWidth = Math.sqrt(3) * radius * COLS;
+            const totalWorldHeight = (3/2) * radius * ROWS;
 
-    // ============================================================
-    // VÀO GAME NGAY - KHÔNG CẦN MÃ PHÒNG
-    // ============================================================
-    async function playNow() {
-      const selected = document.querySelector('.country-card.selected');
-      if (!selected) {
-        alert('Vui lòng chọn quốc gia!');
-        return;
-      }
+            // Giới hạn camera không trôi khỏi ranh giới bản đồ
+            const minX = canvas.width - totalWorldWidth;
+            const minY = canvas.height - totalWorldHeight;
 
-      const country = selected.dataset.country;
-      const playerName = document.getElementById('playerNameInput').value.trim() || 'Napoleon';
+            cameraX = Math.min(0, Math.max(minX, cameraX));
+            cameraY = Math.min(0, Math.max(minY, cameraY));
+        }
 
-      // Đăng nhập Firebase
-      await window.loginWithNickname(playerName);
+        function getPixelCoords(c, r) {
+            const radius = BASE_HEX_RADIUS * zoom;
+            const width = Math.sqrt(3) * radius;
+            const height = (3/2) * radius;
 
-      // Gán quốc gia đã chọn
-      GameData.gameState.currentCountry = country;
+            let x = c * width;
+            if (r % 2 !== 0) x += width / 2;
+            let y = r * height;
 
-      // Tìm phòng trống hoặc tạo mới
-      try {
-        const { database, ref, get, query, orderByChild, limitToFirst } = await import('firebase/database');
-        const gamesRef = ref(database, 'games');
-        const snapshot = await get(query(gamesRef, orderByChild('status'), limitToFirst(10)));
+            return { x: x + cameraX, y: y + cameraY, radius };
+        }
 
-        let targetGameId = null;
+        function getGridCoords(pixelX, pixelY) {
+            const radius = BASE_HEX_RADIUS * zoom;
+            const width = Math.sqrt(3) * radius;
+            const height = (3/2) * radius;
 
-        if (snapshot.exists()) {
-          const games = snapshot.val();
-          // Tìm phòng đang ở trạng thái lobby
-          for (const [id, data] of Object.entries(games)) {
-            if (data.status === 'lobby' && data.players && Object.keys(data.players).length < CONFIG.MAX_PLAYERS) {
-              targetGameId = id;
-              break;
+            const relX = pixelX - cameraX;
+            const relY = pixelY - cameraY;
+
+            const r = Math.round(relY / height);
+            let c = Math.round(relX / width);
+            if (r % 2 !== 0) c = Math.round((relX - width / 2) / width);
+
+            const clampedC = Math.max(0, Math.min(COLS - 1, c));
+            const clampedR = Math.max(0, Math.min(ROWS - 1, r));
+
+            return { col: clampedC, row: clampedR };
+        }
+
+        function getNeighbors(c, r) {
+            const evenDirs = [
+                { dc: +1, dr: 0 }, { dc: 0, dr: -1 }, { dc: -1, dr: -1 },
+                { dc: -1, dr: 0 }, { dc: -1, dr: +1 }, { dc: 0, dr: +1 }
+            ];
+            const oddDirs = [
+                { dc: +1, dr: 0 }, { dc: +1, dr: -1 }, { dc: 0, dr: -1 },
+                { dc: -1, dr: 0 }, { dc: 0, dr: +1 }, { dc: +1, dr: +1 }
+            ];
+
+            const dirs = (r % 2 === 0) ? evenDirs : oddDirs;
+            const neighbors = [];
+
+            for (let i = 0; i < dirs.length; i++) {
+                const nc = c + dirs[i].dc;
+                const nr = r + dirs[i].dr;
+                if (nc >= 0 && nc < COLS && nr >= 0 && nr < ROWS) {
+                    neighbors.push({ col: nc, row: nr, index: nr * COLS + nc });
+                }
             }
-          }
+            return neighbors;
         }
 
-        if (targetGameId) {
-          // Tham gia phòng có sẵn
-          await window.joinGame(targetGameId);
-        } else {
-          // Tạo phòng mới
-          await window.createGame();
+        // --- KHỞI TẠO MAP TĨNH & DỮ LIỆU TỈNH LỘC ---
+        function generateMap() {
+            mapType.fill(0);
+            seaZoneId.fill(1);
+            provinceNum.fill(0);
+            borderFlag.fill(0);
+
+            // 1. Phân chia Vùng Biển
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const idx = r * COLS + c;
+                    if (r < ROWS * 0.5) {
+                        if (c < COLS * 0.25) seaZoneId[idx] = 1;
+                        else if (c < COLS * 0.5) seaZoneId[idx] = 3;
+                        else if (c < COLS * 0.75) seaZoneId[idx] = 8;
+                        else seaZoneId[idx] = 6;
+                    } else {
+                        if (c < COLS * 0.25) seaZoneId[idx] = 2;
+                        else if (c < COLS * 0.5) seaZoneId[idx] = 4;
+                        else if (c < COLS * 0.75) seaZoneId[idx] = 5;
+                        else seaZoneId[idx] = 7;
+                    }
+                }
+            }
+
+            // 2. Tạo Lục Địa
+            const continentSeeds = [
+                { c: 35, r: 30, radius: 25 },
+                { c: 115, r: 30, radius: 25 },
+                { c: 75, r: 40, radius: 20 },
+                { c: 75, r: 60, radius: 15 }
+            ];
+
+            continentSeeds.forEach(seed => {
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        const dist = Math.hypot(c - seed.c, r - seed.r);
+                        if (dist < seed.radius + (Math.sin(c * 0.2) * 3)) {
+                            mapType[r * COLS + c] = 1;
+                        }
+                    }
+                }
+            });
+
+            // 3. Khởi tạo 10 Quốc gia Giáp Ranh
+            NATIONS.forEach(n => {
+                nationDataMap[n.id] = { ...n };
+                const startIdx = n.startY * COLS + n.startX;
+                mapType[startIdx] = n.id;
+
+                const targetCount = n.isMajor ? 25 : 8;
+                let claimed = 1;
+
+                let queue = [ { col: n.startX, row: n.startY } ];
+                while (queue.length > 0 && claimed < targetCount) {
+                    const curr = queue.shift();
+                    const neighbors = getNeighbors(curr.col, curr.row);
+
+                    for (const neighbor of neighbors) {
+                        if (claimed >= targetCount) break;
+                        if (mapType[neighbor.index] === 1 || mapType[neighbor.index] === 0) {
+                            mapType[neighbor.index] = n.id;
+                            claimed++;
+                            queue.push(neighbor);
+                        }
+                    }
+                }
+            });
+
+            // Căn giữa camera ban đầu
+            cameraX = canvas.width / 2 - (Math.sqrt(3) * BASE_HEX_RADIUS * zoom * (COLS / 2));
+            cameraY = canvas.height / 2 - ((3/2) * BASE_HEX_RADIUS * zoom * (ROWS / 2));
+            clampCamera();
+
+            recalculateProvincesAndBorders();
+            generateProvinceDetails();
         }
 
-        // Đóng setup modal
-        document.getElementById('setupModal').classList.remove('active');
+        function recalculateProvincesAndBorders() {
+            borderFlag.fill(0);
+            provinceNum.fill(0);
 
-      } catch (error) {
-        console.error('Lỗi vào game:', error);
-        // Fallback: tạo phòng mới
-        await window.createGame();
-        document.getElementById('setupModal').classList.remove('active');
-      }
-    }
+            const counters = {};
+            NATIONS.forEach(n => counters[n.id] = 1);
 
-    // ============================================================
-    // SETUP UI EVENTS
-    // ============================================================
-    function setupUIEvents() {
-      // Đăng nhập bằng Enter
-      document.getElementById('playerNameInput').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          document.getElementById('btn-play-now').click();
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const idx = r * COLS + c;
+                    const type = mapType[idx];
+
+                    if (type >= 10) {
+                        provinceNum[idx] = counters[type]++;
+
+                        const neighbors = getNeighbors(c, r);
+                        let isBorder = false;
+
+                        for (const n of neighbors) {
+                            if (mapType[n.index] !== type) {
+                                isBorder = true;
+                                break;
+                            }
+                        }
+
+                        if (isBorder) borderFlag[idx] = 1;
+                    }
+                }
+            }
         }
-      });
 
-      // Nút "Vào game ngay"
-      document.getElementById('btn-play-now').addEventListener('click', playNow);
+        // --- TẠO DỮ LIỆU DÂN SỐ, CÔNG NGHIỆP & CƠ CẤU DÂN CƯ ---
+        function generateProvinceDetails() {
+            for (let i = 0; i < TOTAL_TILES; i++) {
+                const type = mapType[i];
 
-      // Đóng panel
-      document.getElementById('closePanelBtn').addEventListener('click', () => {
-        document.getElementById('provincePanel').classList.remove('open');
-      });
+                if (type === 0) {
+                    // Biển
+                    provinceDetails[i] = {
+                        type: "Sea",
+                        pop: 0,
+                        industry: 0,
+                        demographics: []
+                    };
+                } else if (type === 1) {
+                    // Đất Trung Lập
+                    provinceDetails[i] = {
+                        type: "Neutral",
+                        pop: (Math.random() * 0.3 + 0.1).toFixed(2), // 0.1M - 0.4M
+                        industry: Math.floor(Math.random() * 20) + 5,
+                        demographics: [
+                            { name: "Dân Bản Địa Trung Lập", pct: 85, color: "#9ca3af" },
+                            { name: "Sắc Tộc Khác", pct: 15, color: "#6b7280" }
+                        ]
+                    };
+                } else {
+                    // Tỉnh thuộc Quốc Gia
+                    const mainNat = nationDataMap[type];
+                    const mainPct = Math.floor(Math.random() * 20) + 75; // 75% - 95% Dân gốc
+                    
+                    // Lấy ngẫu nhiên 1 quốc gia láng giềng chiếm phần trăm còn lại
+                    const otherNations = NATIONS.filter(n => n.id !== type);
+                    const neighborNat = otherNations[Math.floor(Math.random() * otherNations.length)];
+                    const remainingPct = 100 - mainPct;
 
-      // Nút tuyển quân
-      document.getElementById('btn-recruit').addEventListener('click', () => {
-        const provinceId = GameData.gameState.selectedProvince;
-        if (provinceId) window.showRecruitMenu(provinceId);
-      });
-
-      // Nút phát triển kinh tế
-      document.getElementById('btn-develop').addEventListener('click', () => {
-        if (window.developEconomy) {
-          window.developEconomy(GameData.gameState.selectedProvince);
-        } else {
-          alert('Chức năng đang phát triển');
+                    provinceDetails[i] = {
+                        type: "NationProvince",
+                        pop: (Math.random() * 2.5 + 0.5).toFixed(2), // 0.5M - 3.0M Dân
+                        industry: Math.floor(Math.random() * 60) + 35, // 35 - 95
+                        demographics: [
+                            { name: `Dân ${mainNat.name}`, pct: mainPct, color: mainNat.color },
+                            { name: `Dân ${neighborNat.name}`, pct: remainingPct, color: neighborNat.color }
+                        ]
+                    };
+                }
+            }
         }
-      });
 
-      // Nút tấn công
-      document.getElementById('btn-attack').addEventListener('click', () => {
-        const hint = document.getElementById('attack-target-hint');
-        hint.classList.toggle('hidden');
-        GameData.gameState.isAttackMode = !GameData.gameState.isAttackMode;
-        const btn = document.getElementById('btn-attack');
-        btn.classList.toggle('btn-danger');
-        btn.classList.toggle('btn-primary');
-        btn.innerHTML = GameData.gameState.isAttackMode
-          ? '<i class="fa-solid fa-ban"></i> Hủy tấn công'
-          : '<i class="fa-solid fa-swords"></i> Tấn công';
-      });
-    }
+        // --- RENDER BẢN ĐỒ CỰC MƯỢT ---
+        function renderMap() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // ============================================================
-    // WATCH PROVINCE SELECTION
-    // ============================================================
-    function watchProvinceSelection() {
-      const originalSelect = window.selectProvince;
-      window.selectProvince = function(provinceId) {
-        const province = GameData.provinces[provinceId];
-        if (!province) return;
+            const radius = BASE_HEX_RADIUS * zoom;
+            const width = Math.sqrt(3) * radius;
+            const height = (3/2) * radius;
 
-        GameData.gameState.selectedProvince = provinceId;
-        const panel = document.getElementById('provincePanel');
-        document.getElementById('province-name').textContent = province.name || 'Không tên';
-        document.getElementById('province-owner').textContent = COUNTRIES[province.country]?.name || province.country;
-        document.getElementById('province-troops').textContent = Object.values(province.units || {}).reduce((a, b) => a + b, 0);
-        document.getElementById('province-economy').textContent = province.economy || 0;
-        panel.classList.add('open');
+            const minRow = Math.max(0, Math.floor((-cameraY - 30) / height));
+            const maxRow = Math.min(ROWS - 1, Math.ceil((canvas.height - cameraY + 30) / height));
 
-        const isMine = province.country === GameData.gameState.currentCountry;
-        document.getElementById('province-actions').style.display = isMine ? 'flex' : 'none';
-      };
-    }
+            const minCol = Math.max(0, Math.floor((-cameraX - 30) / width));
+            const maxCol = Math.min(COLS - 1, Math.ceil((canvas.width - cameraX + 30) / width));
 
-    // ============================================================
-    // MINI MAP
-    // ============================================================
-    function initMiniMap() {
-      const canvas = document.getElementById('minimap-canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = 150;
-      canvas.height = 150;
+            for (let r = minRow; r <= maxRow; r++) {
+                for (let c = minCol; c <= maxCol; c++) {
+                    const idx = r * COLS + c;
+                    const type = mapType[idx];
+                    const isBorder = borderFlag[idx] === 1;
+                    const pNum = provinceNum[idx];
+                    const isSelected = (idx === selectedHexIndex);
 
-      function updateMiniMap() {
-        ctx.clearRect(0, 0, 150, 150);
-        ctx.fillStyle = '#1a3a5a';
-        ctx.fillRect(0, 0, 150, 150);
+                    const { x, y } = getPixelCoords(c, r);
 
-        const provinces = GameData.provinces || {};
-        Object.values(provinces).forEach(p => {
-          const x = (p.x / CONFIG.MAP_SIZE.width) * 150;
-          const y = (p.y / CONFIG.MAP_SIZE.height) * 150;
-          const color = COUNTRIES[p.country]?.color || '#666';
-          ctx.fillStyle = color;
-          ctx.fillRect(x - 1, y - 1, 3, 3);
+                    ctx.beginPath();
+                    for (let i = 0; i < 6; i++) {
+                        const angle = (Math.PI / 3) * i - Math.PI / 6;
+                        const hX = x + radius * Math.cos(angle);
+                        const hY = y + radius * Math.sin(angle);
+                        if (i === 0) ctx.moveTo(hX, hY);
+                        else ctx.lineTo(hX, hY);
+                    }
+                    ctx.closePath();
+
+                    if (type === 0) {
+                        const sea = SEA_ZONES[seaZoneId[idx] - 1];
+                        ctx.fillStyle = sea.color;
+                        ctx.strokeStyle = sea.border;
+                        ctx.lineWidth = 0.3;
+                    } else if (type === 1) {
+                        ctx.fillStyle = "#2d3748";
+                        ctx.strokeStyle = "#4a5568";
+                        ctx.lineWidth = 0.4;
+                    } else {
+                        const nat = nationDataMap[type];
+                        ctx.fillStyle = nat.color;
+
+                        if (isBorder) {
+                            ctx.strokeStyle = nat.borderHex;
+                            ctx.lineWidth = 1.8;
+                        } else {
+                            ctx.strokeStyle = "rgba(0,0,0,0.3)";
+                            ctx.lineWidth = 0.4;
+                        }
+                    }
+
+                    // Highlight ô đang được Click/Chọn
+                    if (isSelected) {
+                        ctx.strokeStyle = "#fbbf24"; // Viền vàng neon
+                        ctx.lineWidth = 3.0;
+                    }
+
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Tên Tỉnh (Red 1, Red 2,...)
+                    if (type >= 10 && zoom >= 0.75 && pNum > 0) {
+                        const nat = nationDataMap[type];
+                        ctx.fillStyle = "#ffffff";
+                        ctx.font = `bold ${Math.floor(9 * zoom)}px sans-serif`;
+                        ctx.textAlign = "center";
+                        ctx.textBaseline = "middle";
+                        ctx.fillText(`${nat.prefix} ${pNum}`, x, y);
+                    }
+                }
+            }
+
+            renderMiniMap();
+            requestAnimationFrame(renderMap);
+        }
+
+        // --- RENDER MINI-MAP & KHUNG NHÌN CAMERA ---
+        function renderMiniMap() {
+            const mW = miniCanvas.width;
+            const mH = miniCanvas.height;
+
+            miniCtx.clearRect(0, 0, mW, mH);
+
+            const cellW = mW / COLS;
+            const cellH = mH / ROWS;
+
+            for (let r = 0; r < ROWS; r += 2) {
+                for (let c = 0; c < COLS; c += 2) {
+                    const idx = r * COLS + c;
+                    const type = mapType[idx];
+
+                    if (type === 0) miniCtx.fillStyle = "#0d1b2a";
+                    else if (type === 1) miniCtx.fillStyle = "#374151";
+                    else {
+                        const nat = nationDataMap[type];
+                        miniCtx.fillStyle = nat ? nat.color : "#ffffff";
+                    }
+
+                    miniCtx.fillRect(c * cellW, r * cellH, cellW * 2, cellH * 2);
+                }
+            }
+
+            const radius = BASE_HEX_RADIUS * zoom;
+            const totalWorldPixelW = Math.sqrt(3) * radius * COLS;
+            const totalWorldPixelH = (3/2) * radius * ROWS;
+
+            const viewWidthRatio = canvas.width / totalWorldPixelW;
+            const viewHeightRatio = canvas.height / totalWorldPixelH;
+
+            const boxW = Math.max(12, mW * viewWidthRatio);
+            const boxH = Math.max(8, mH * viewHeightRatio);
+
+            const boxX = Math.max(0, Math.min(mW - boxW, (-cameraX / totalWorldPixelW) * mW));
+            const boxY = Math.max(0, Math.min(mH - boxH, (-cameraY / totalWorldPixelH) * mH));
+
+            miniCtx.strokeStyle = "#fbbf24";
+            miniCtx.lineWidth = 1.5;
+            miniCtx.strokeRect(boxX, boxY, boxW, boxH);
+            miniCtx.fillStyle = "rgba(251, 191, 36, 0.15)";
+            miniCtx.fillRect(boxX, boxY, boxW, boxH);
+        }
+
+        // --- HIỂN THỊ BẢNG TRA CỨU THÔNG TIN TỈNH ---
+        function showProvinceInspector(gridIdx) {
+            selectedHexIndex = gridIdx;
+            const type = mapType[gridIdx];
+            const pNum = provinceNum[gridIdx];
+            const details = provinceDetails[gridIdx];
+
+            const modal = document.getElementById('province-modal');
+            const typeEl = document.getElementById('modal-region-type');
+            const nameEl = document.getElementById('modal-prov-name');
+            const ownerNameEl = document.getElementById('modal-owner-name');
+            const ownerColorEl = document.getElementById('modal-owner-color');
+            const popEl = document.getElementById('modal-population');
+            const indEl = document.getElementById('modal-industry');
+            const demoContainer = document.getElementById('modal-demographics-bars');
+
+            if (type === 0) {
+                // Biển
+                const sea = SEA_ZONES[seaZoneId[gridIdx] - 1];
+                typeEl.textContent = "Vùng Biển / Hải Phận";
+                nameEl.textContent = sea.name;
+                ownerNameEl.textContent = "Hải Địa Quốc Tế";
+                ownerColorEl.style.backgroundColor = sea.color;
+                popEl.textContent = "0";
+                indEl.textContent = "0/100";
+                demoContainer.innerHTML = '<div class="text-gray-500 italic text-[10px]">Không có cư dân sinh sống</div>';
+            } else if (type === 1) {
+                // Đất Trung Lập
+                typeEl.textContent = "Vùng Đất Trung Lập";
+                nameEl.textContent = "Neutral Province";
+                ownerNameEl.textContent = "Không Quốc Gia";
+                ownerColorEl.style.backgroundColor = "#374151";
+                popEl.textContent = `${details.pop} M`;
+                indEl.textContent = `${details.industry}/100`;
+                
+                demoContainer.innerHTML = details.demographics.map(d => `
+                    <div>
+                        <div class="flex justify-between text-[10px] text-gray-300 mb-0.5">
+                            <span>${d.name}</span>
+                            <span class="font-bold">${d.pct}%</span>
+                        </div>
+                        <div class="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
+                            <div class="h-full rounded-full" style="width: ${d.pct}%; background-color: ${d.color}"></div>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                // Tỉnh Lộc Quốc Gia
+                const nat = nationDataMap[type];
+                typeEl.textContent = `Tỉnh Lộc thuộc ${nat.name}`;
+                nameEl.textContent = `${nat.prefix} ${pNum}`;
+                ownerNameEl.textContent = nat.name;
+                ownerColorEl.style.backgroundColor = nat.color;
+                popEl.textContent = `${details.pop} M`;
+                indEl.textContent = `${details.industry}/100`;
+
+                demoContainer.innerHTML = details.demographics.map(d => `
+                    <div>
+                        <div class="flex justify-between text-[10px] text-gray-300 mb-0.5">
+                            <span>${d.name}</span>
+                            <span class="font-bold font-mono">${d.pct}%</span>
+                        </div>
+                        <div class="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
+                            <div class="h-full rounded-full" style="width: ${d.pct}%; background-color: ${d.color}"></div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        // Chạm vào Mini-map để di chuyển góc nhìn
+        miniCanvas.addEventListener('click', (e) => {
+            const rect = miniCanvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+
+            const pctX = clickX / miniCanvas.width;
+            const pctY = clickY / miniCanvas.height;
+
+            const radius = BASE_HEX_RADIUS * zoom;
+            const totalWorldPixelW = Math.sqrt(3) * radius * COLS;
+            const totalWorldPixelH = (3/2) * radius * ROWS;
+
+            cameraX = canvas.width / 2 - (pctX * totalWorldPixelW);
+            cameraY = canvas.height / 2 - (pctY * totalWorldPixelH);
+            clampCamera();
         });
 
-        requestAnimationFrame(updateMiniMap);
-      }
-      updateMiniMap();
-    }
+        // --- BẮT SỰ KIỆN CẢM ỨNG & KÉO DI CHUYỂN MAP ---
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                isDragging = true;
+                touchStartX = e.touches[0].clientX - cameraX;
+                touchStartY = e.touches[0].clientY - cameraY;
+            } else if (e.touches.length === 2) {
+                isDragging = false;
+                initialPinchDist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+            }
+        });
 
-    // ============================================================
-    // NOTIFICATION SYSTEM
-    // ============================================================
-    window.notify = function(message, type = 'info') {
-      const container = document.getElementById('notification-container');
-      const colors = { info: 'info', success: 'success', warning: 'warning', danger: 'danger' };
-      const div = document.createElement('div');
-      div.className = `notification ${colors[type] || 'info'}`;
-      div.innerHTML = `<span>${message}</span>`;
-      container.appendChild(div);
+        canvas.addEventListener('touchmove', (e) => {
+            if (isDragging && e.touches.length === 1) {
+                cameraX = e.touches[0].clientX - touchStartX;
+                cameraY = e.touches[0].clientY - touchStartY;
+                clampCamera();
+            } else if (e.touches.length === 2 && initialPinchDist) {
+                const currentDist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                const factor = currentDist / initialPinchDist;
+                zoom = Math.max(0.4, Math.min(2.5, zoom * (factor > 1 ? 1.02 : 0.98)));
+                clampCamera();
+                document.getElementById('zoom-text').textContent = `${Math.round(zoom * 100)}%`;
+                initialPinchDist = currentDist;
+            }
+        });
 
-      setTimeout(() => {
-        div.classList.add('fade-out');
-        setTimeout(() => div.remove(), 500);
-      }, 4000);
-    };
+        canvas.addEventListener('touchend', () => {
+            isDragging = false;
+            initialPinchDist = null;
+        });
 
-    // ============================================================
-    // KHỞI TẠO
-    // ============================================================
-    renderCountryList();
-    setupUIEvents();
-    watchProvinceSelection();
-    initMiniMap();
+        // Click trực tiếp vào Ô Tỉnh để mở Thẻ Thông Tin Chi Tiết
+        canvas.addEventListener('click', (e) => {
+            const grid = getGridCoords(e.clientX, e.clientY);
+            const idx = grid.row * COLS + grid.col;
+            showProvinceInspector(idx);
+        });
 
-    console.log('✅ Index.html đã sẵn sàng!');
-    console.log('📦 Quốc gia:', Object.keys(COUNTRIES).length);
-    console.log('🗺️ Tỉnh:', Object.keys(GameData.provinces || {}).length);
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const factor = e.deltaY < 0 ? 1.1 : 0.9;
+            zoom = Math.max(0.4, Math.min(2.5, zoom * factor));
+            clampCamera();
+            document.getElementById('zoom-text').textContent = `${Math.round(zoom * 100)}%`;
+        });
 
-    // Ẩn loading
-    setTimeout(() => {
-      document.getElementById('loading').style.display = 'none';
-    }, 1000);
-  </script>
+        document.getElementById('btn-close-modal').addEventListener('click', () => {
+            document.getElementById('province-modal').classList.add('hidden');
+            selectedHexIndex = -1;
+        });
 
+        document.getElementById('btn-regen-map').addEventListener('click', generateMap);
+
+        window.addEventListener('resize', resizeCanvas);
+
+        window.onload = () => {
+            resizeCanvas();
+            generateMap();
+            renderMap();
+        };
+    </script>
 </body>
 </html>
+
