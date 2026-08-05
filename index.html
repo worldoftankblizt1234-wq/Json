@@ -3,960 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Bản Đồ Địa Lý & Thống Kê Quốc Gia</title>
-
-    <!-- PWA Manifest -->
+    <title>🌍 Age of History - Real-time Strategy</title>
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/style.css">
+    
+    <!-- PWA -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#030712">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Bản Đồ PWA">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/854/854878.png">
-
+    
+    <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        * { box-sizing: border-box; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
-        body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; background: #030712; color: #f3f4f6; font-family: system-ui, sans-serif; }
-
-        #portrait-warning { display: none; }
-        @media screen and (max-width: 768px) and (orientation: portrait) {
-            #portrait-warning { display: flex; }
-        }
-
-        .smooth-scroll {
-            touch-action: pan-y !important;
-            overflow-y: auto !important;
-            -webkit-overflow-scrolling: touch;
-            overscroll-behavior: contain;
-            will-change: transform;
-        }
-        .smooth-scroll::-webkit-scrollbar { width: 6px; }
-        .smooth-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); border-radius: 4px; }
-        .smooth-scroll::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.5); border-radius: 4px; }
-
-        #worldMapCanvas {
-            touch-action: none;
-            cursor: grab;
-        }
-        #worldMapCanvas:active { cursor: grabbing; }
-    </style>
 </head>
 <body>
 
-    <!-- Cảnh báo xoay ngang -->
-    <div id="portrait-warning" class="fixed inset-0 z-50 bg-gray-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
-        <div class="w-16 h-16 mb-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-3xl animate-bounce">📲</div>
-        <h2 class="text-base font-bold text-indigo-400 mb-1">VUI LÒNG XOAY NGANG ĐIỆN THOẠI</h2>
-        <p class="text-xs text-gray-400 max-w-xs">Xoay ngang màn hình để tra cứu bản đồ.</p>
+    <!-- ====== CẢNH BÁO XOAY NGANG ====== -->
+    <div id="rotate-warning" class="fixed inset-0 z-[100] bg-gray-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
+        <div class="w-20 h-20 mb-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-4xl animate-bounce">📱</div>
+        <h2 class="text-lg font-bold text-indigo-400 mb-2">VUI LÒNG XOAY NGANG ĐIỆN THOẠI</h2>
+        <p class="text-sm text-gray-400 max-w-xs">Xoay ngang màn hình để trải nghiệm game tốt nhất</p>
+        <div class="mt-6 text-6xl animate-pulse">↻</div>
+        <p class="text-xs text-gray-500 mt-4">(Sau khi xoay, trang sẽ tự động hiển thị)</p>
     </div>
 
-    <!-- Thanh trạng thái -->
-    <div class="absolute top-2 left-2 z-20 pointer-events-none flex flex-wrap items-center gap-2">
-        <div class="pointer-events-auto bg-gray-900/90 backdrop-blur-md border border-gray-800/80 px-3 py-1.5 rounded-full flex items-center gap-3 text-xs shadow-2xl">
-            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span class="font-bold text-gray-200">BẢN ĐỒ 18.000 Ô</span>
-            <span class="text-gray-700">|</span>
-            <span class="text-[11px] text-gray-400">Zoom: <strong id="zoom-text" class="text-indigo-400 font-mono">100%</strong></span>
-        </div>
-        <button id="btn-toggle-nations-list" class="pointer-events-auto bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-bold text-xs px-3 py-1.5 rounded-full shadow-lg border border-indigo-400/30 flex items-center gap-1">🏛️ Bảng Quốc Gia & Liên Minh</button>
-        <!-- Đã xóa nút Tạo Địa Hình Mới -->
+    <!-- ====== CANVAS BẢN ĐỒ ====== -->
+    <canvas id="worldMapCanvas"></canvas>
+
+    <!-- ====== MINI MAP ====== -->
+    <div id="mini-map-container">
+        <div class="text-[8px] text-gray-400 font-bold text-center mb-0.5">🗺️</div>
+        <canvas id="miniMapCanvas" width="180" height="100"></canvas>
     </div>
 
-    <!-- Mini‑Map -->
-    <div class="absolute bottom-3 right-3 z-30 bg-gray-900/90 border border-gray-700/80 p-1.5 rounded-xl shadow-2xl backdrop-blur-md">
-        <div class="text-[10px] text-gray-400 font-bold mb-1 flex justify-between items-center px-1">
-            <span>🌍 MINI-MAP</span>
-            <span class="text-amber-400 text-[9px]">Chạm định vị</span>
+    <!-- ====== TOP BAR ====== -->
+    <div id="top-bar" class="fixed top-0 left-0 right-0 z-40 bg-gray-900/95 backdrop-blur-md border-b border-indigo-500/20 px-2 py-1 flex flex-wrap items-center justify-between gap-0.5 relative">
+        <div class="flex items-center gap-1.5 text-[9px] sm:text-xs">
+            <span class="text-yellow-400 font-bold">💰 <span id="gold-display">0</span></span>
+            <span class="text-blue-400 font-bold">👤 <span id="pop-display">0</span></span>
+            <span class="text-red-400 font-bold">⚔️ <span id="army-display">0</span></span>
+            <span class="text-green-400 font-bold">🏗️ <span id="building-count">0</span></span>
         </div>
-        <div class="relative overflow-hidden rounded-lg border border-gray-800">
-            <canvas id="miniMapCanvas" width="180" height="100" class="block cursor-pointer active:brightness-125"></canvas>
+        <div class="flex items-center gap-1.5 text-[9px] sm:text-xs">
+            <span class="text-gray-400">⏱️ <span id="time-display">30:00</span></span>
+            <span class="text-gray-400">👑 <span id="nation-name-display">Red Empire</span></span>
+            <span class="w-3 h-3 rounded-full border border-white/20" id="nation-color-display" style="background:#dc2626"></span>
         </div>
+        <!-- Thanh thời gian -->
+        <div id="time-bar" class="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-green-500 via-yellow-500 to-red-500 transition-all duration-300" style="width:100%; transform-origin:left; transform:scaleX(1)"></div>
     </div>
 
-    <!-- Modal Danh sách Quốc gia & Liên minh -->
-    <div id="nations-list-modal" class="hidden fixed inset-0 z-40 bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4">
-        <div class="bg-gray-900 border border-indigo-500/40 w-full max-w-4xl h-[90vh] rounded-2xl p-3 sm:p-4 flex flex-col shadow-2xl overflow-hidden">
-            <div class="flex justify-between items-center border-b border-gray-800 pb-2.5 mb-2.5 shrink-0">
-                <div>
-                    <h2 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
-                        <span>🏛️</span>
-                        <span>DANH SÁCH 10 QUỐC GIA & BẢNG LIÊN MINH</span>
-                    </h2>
-                    <p class="text-[11px] text-gray-400 mt-0.5">Mọi quốc gia hiện tại đều độc lập (chưa gia nhập Liên minh)</p>
-                </div>
-                <button id="btn-close-nations-modal" class="text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shrink-0">✕</button>
-            </div>
-
-            <div class="flex gap-2 mb-2.5 border-b border-gray-800 pb-2 shrink-0">
-                <button id="tab-btn-nations" class="bg-indigo-600 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition">10 Quốc Gia</button>
-                <button id="tab-btn-alliances" class="bg-gray-800 text-gray-400 hover:text-white font-bold text-xs px-3 py-1.5 rounded-lg transition">10 Khối Liên Minh</button>
-            </div>
-
-            <div id="tab-content-nations" class="smooth-scroll flex-1 pr-1 space-y-2"></div>
-            <div id="tab-content-alliances" class="hidden smooth-scroll flex-1 pr-1 space-y-2"></div>
+    <!-- ====== GAME CONTROLS ====== -->
+    <div id="game-controls" class="fixed bottom-0 left-0 right-0 z-40 bg-gray-900/95 backdrop-blur-md border-t border-indigo-500/30 px-1 py-1">
+        <div class="flex flex-wrap gap-0.5 justify-center items-center max-w-4xl mx-auto">
+            <button id="btn-select" class="px-1.5 py-1 sm:px-3 sm:py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[8px] sm:text-xs font-bold transition active:scale-95">🎯 Chọn</button>
+            <button id="btn-move" class="px-1.5 py-1 sm:px-3 sm:py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[8px] sm:text-xs font-bold transition active:scale-95">🚀 Di chuyển</button>
+            <button id="btn-attack" class="px-1.5 py-1 sm:px-3 sm:py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-[8px] sm:text-xs font-bold transition active:scale-95">⚔️ Tấn công</button>
+            <button id="btn-recruit" class="px-1.5 py-1 sm:px-3 sm:py-1.5 rounded-lg bg-green-600 hover:bg-green-500 text-white text-[8px] sm:text-xs font-bold transition active:scale-95">🔰 Tuyển</button>
+            <button id="btn-build" class="px-1.5 py-1 sm:px-3 sm:py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-[8px] sm:text-xs font-bold transition active:scale-95">🏗️ Xây</button>
+            <button id="btn-diplomacy" class="px-1.5 py-1 sm:px-3 sm:py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-[8px] sm:text-xs font-bold transition active:scale-95">🤝 Ngoại</button>
+            <span class="text-gray-600 text-[8px]">|</span>
+            <button id="btn-pause" class="px-1.5 py-1 sm:px-3 sm:py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-white text-[8px] sm:text-xs font-bold transition active:scale-95">⏸️</button>
+            <button id="btn-speed" class="px-1.5 py-1 sm:px-3 sm:py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-white text-[8px] sm:text-xs font-bold transition active:scale-95">⏩ 1x</button>
         </div>
     </div>
 
-    <!-- Modal Thông tin Tỉnh & Quốc gia -->
-    <div id="province-modal" class="hidden absolute top-12 left-3 z-40 w-80 max-h-[82vh] smooth-scroll bg-gray-900/95 backdrop-blur-md border border-indigo-500/40 rounded-2xl p-3.5 shadow-2xl transition-all">
-        <div class="flex justify-between items-start border-b border-gray-800 pb-2 mb-2">
-            <div>
-                <div class="text-[10px] text-indigo-400 font-bold uppercase tracking-wide" id="modal-region-type">Cường Quốc</div>
-                <h3 class="text-base font-extrabold text-white" id="modal-prov-name">Blue 48</h3>
-            </div>
-            <button id="btn-close-modal" class="text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">✕</button>
-        </div>
+    <!-- ====== MODALS ====== -->
+    <!-- Province Info -->
+    <div id="province-modal" class="hidden fixed top-10 left-1 z-50 w-56 max-h-[60vh] overflow-y-auto bg-gray-900/95 backdrop-blur-md border border-indigo-500/40 rounded-2xl p-2.5 shadow-2xl text-[10px]">
+        <button id="btn-close-modal" class="absolute top-1 right-2 text-gray-400 hover:text-white text-sm">✕</button>
+        <div id="modal-content"></div>
+    </div>
 
-        <div class="space-y-2 text-xs">
-            <div class="flex items-center justify-between bg-gray-950/80 p-2 rounded-xl border border-gray-800/80">
-                <span class="text-gray-400">Chủ quyền:</span>
-                <div class="flex items-center gap-1.5 font-bold">
-                    <span class="w-3 h-3 rounded-full border border-white/20" id="modal-owner-color"></span>
-                    <span id="modal-owner-name" class="text-gray-200">Blue Kingdom</span>
-                </div>
-            </div>
+    <!-- Build Menu -->
+    <div id="build-menu" class="hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-gray-900/95 backdrop-blur-md border border-purple-500/40 rounded-2xl p-3 w-72 max-h-[70vh] overflow-y-auto shadow-2xl">
+        <h3 class="text-white font-bold text-sm mb-2">🏗️ XÂY DỰNG</h3>
+        <div id="build-list" class="space-y-1"></div>
+        <button id="btn-close-build" class="mt-2 px-4 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-white text-xs w-full">Đóng</button>
+    </div>
 
-            <div class="grid grid-cols-2 gap-1.5">
-                <div class="bg-gray-950/80 p-2 rounded-xl border border-gray-800/80 text-center">
-                    <div class="text-[9px] text-gray-400 uppercase">Dân Số Tỉnh</div>
-                    <div class="text-xs font-extrabold text-amber-400 font-mono mt-0.5" id="modal-prov-pop">1.04M</div>
-                </div>
-                <div class="bg-gray-950/80 p-2 rounded-xl border border-gray-800/80 text-center">
-                    <div class="text-[9px] text-gray-400 uppercase">Công Nghiệp</div>
-                    <div class="text-xs font-extrabold text-emerald-400 font-mono mt-0.5" id="modal-prov-ind">59/100</div>
-                </div>
-                <div class="bg-gray-950/80 p-2 rounded-xl border border-gray-800/80 text-center col-span-2">
-                    <div class="text-[9px] text-gray-400 uppercase">Quân Số Tỉnh</div>
-                    <div class="text-xs font-extrabold text-red-400 font-mono mt-0.5" id="modal-prov-army">13K</div>
-                </div>
-            </div>
+    <!-- Diplomacy Menu -->
+    <div id="diplomacy-menu" class="hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-gray-900/95 backdrop-blur-md border border-amber-500/40 rounded-2xl p-3 w-72 max-h-[70vh] overflow-y-auto shadow-2xl">
+        <h3 class="text-white font-bold text-sm mb-2">🤝 NGOẠI GIAO</h3>
+        <div id="diplomacy-list" class="space-y-1"></div>
+        <button id="btn-close-diplomacy" class="mt-2 px-4 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-white text-xs w-full">Đóng</button>
+    </div>
 
-            <div class="bg-gray-950/90 p-2.5 rounded-xl border border-indigo-500/20 space-y-2">
-                <div class="text-[10px] font-bold text-indigo-300 uppercase tracking-wider flex justify-between">
-                    <span>🏛️ Dữ Liệu Tổng Quốc Gia</span>
-                    <span id="modal-nat-alliance-tag" class="text-[9px] text-gray-400 font-normal">Độc Lập</span>
-                </div>
-
-                <div class="grid grid-cols-2 gap-1.5 text-[11px]">
-                    <div class="bg-gray-900/80 p-1.5 rounded-lg border border-gray-800">
-                        <div class="text-[9px] text-gray-400">Tổng Dân Số:</div>
-                        <div class="font-bold text-white font-mono" id="modal-nat-total-pop">1306.2M</div>
-                    </div>
-                    <div class="bg-gray-900/80 p-1.5 rounded-lg border border-gray-800">
-                        <div class="text-[9px] text-gray-400">GDP:</div>
-                        <div class="font-bold text-emerald-400 font-mono" id="modal-nat-gdp">$2,180B</div>
-                    </div>
-                    <div class="bg-gray-900/80 p-1.5 rounded-lg border border-gray-800">
-                        <div class="text-[9px] text-gray-400">Kho Bạc:</div>
-                        <div class="font-bold text-amber-400 font-mono" id="modal-nat-treasury">$380B</div>
-                    </div>
-                    <div class="bg-gray-900/80 p-1.5 rounded-lg border border-gray-800">
-                        <div class="text-[9px] text-gray-400">Hạnh Phúc:</div>
-                        <div class="font-bold text-pink-400 font-mono" id="modal-nat-happiness">81%</div>
-                    </div>
-                    <div class="bg-gray-900/80 p-1.5 rounded-lg border border-gray-800">
-                        <div class="text-[9px] text-gray-400">Thuế:</div>
-                        <div class="font-bold text-blue-400 font-mono" id="modal-nat-tax">20%</div>
-                    </div>
-                    <div class="bg-gray-900/80 p-1.5 rounded-lg border border-gray-800">
-                        <div class="text-[9px] text-gray-400">An Sinh:</div>
-                        <div class="font-bold text-purple-400 font-mono" id="modal-nat-welfare">22% GDP</div>
-                    </div>
-                    <div class="bg-gray-900/80 p-1.5 rounded-lg border border-gray-800 col-span-2">
-                        <div class="text-[9px] text-gray-400">Tổng Quân Số:</div>
-                        <div class="font-bold text-red-400 font-mono" id="modal-nat-total-army">24009K</div>
-                    </div>
-                </div>
+    <!-- Nations List -->
+    <div id="nations-list-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-2">
+        <div class="bg-gray-900 border border-indigo-500/40 w-full max-w-4xl max-h-[85vh] rounded-2xl p-3 overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-gray-800 pb-1.5 mb-2">
+                <h2 class="text-white font-bold text-sm">🏛️ DANH SÁCH QUỐC GIA</h2>
+                <button id="btn-close-nations-modal" class="text-gray-400 hover:text-white text-lg">✕</button>
             </div>
-
-            <div class="bg-gray-950/80 p-2 rounded-xl border border-gray-800/80">
-                <div class="text-[10px] font-bold text-gray-300 mb-1">Cơ Cấu Cư Dân Tỉnh:</div>
-                <div id="modal-demographics-bars" class="space-y-1"></div>
-            </div>
+            <div id="nations-list-content"></div>
         </div>
     </div>
 
-    <!-- Canvas chính -->
-    <canvas id="worldMapCanvas" class="w-full h-full block"></canvas>
+    <!-- Toast -->
+    <div id="toast-container" class="fixed top-10 left-1/2 -translate-x-1/2 z-50 pointer-events-none"></div>
 
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration failed:', err));
-            });
-        }
-
-        // --- CẤU HÌNH ---
-        const COLS = 180;
-        const ROWS = 100;
-        const TOTAL_TILES = COLS * ROWS;
-        const BASE_HEX_RADIUS = 35;
-        const ZOOM_THRESHOLD = 0.55; // hiển thị quân số khi zoom >= ngưỡng này
-
-        // 10 KHỐI LIÊN MINH
-        const ALLIANCES = [
-            { id: 1, name: "Tân Hiệp Ước Đại Tây Dương (NATO-X)", desc: "Liên minh quân sự và an ninh hàng hải phía Tây." },
-            { id: 2, name: "Khối Liên Minh Bắc Băng Dương", desc: "Hợp tác khai thác tài nguyên và bảo vệ vùng cực." },
-            { id: 3, name: "Hiệp Ước Phòng Thủ Lục Địa", desc: "Liên minh tương trợ quân sự mặt đất." },
-            { id: 4, name: "Trục Đồng Minh Thái Bình Dương", desc: "Khối hợp tác chiến lược và giao thương đại dương." },
-            { id: 5, name: "Liên Minh Thương Mại Trung Địa", desc: "Hiệp hội giảm thuế quan và tự do thương hàng." },
-            { id: 6, name: "Hiệp Hội Các Quốc Gia Hoàng Gia", desc: "Liên minh chính trị của các triều đại." },
-            { id: 7, name: "Khối Hợp Tác An Ninh Đông Phương", desc: "Tổ chức an ninh phòng thủ chung miền Đông." },
-            { id: 8, name: "Liên Minh Hòa Bình Lục Địa", desc: "Tổ chức trung gian hòa giải và viện trợ nhân đạo." },
-            { id: 9, name: "Hiệp Ước Bảo Hộ Hàng Hải", desc: "Khối liên kết bảo vệ tuyến đường biển thương mại." },
-            { id: 10, name: "Khối Đồng Minh Tân Thế Giới", desc: "Liên minh công nghệ và phát triển công nghiệp." }
-        ];
-
-        // 12 VÙNG BIỂN
-        const SEA_ZONES = [
-            { id: 1, name: "Bắc Thái Bình Dương", color: "#0c1e36", border: "#162e4d" },
-            { id: 2, name: "Tây Bắc Thái Bình Dương", color: "#0d223a", border: "#183352" },
-            { id: 3, name: "Đông Bắc Thái Bình Dương", color: "#0b253c", border: "#153554" },
-            { id: 4, name: "Bắc Đại Tây Dương", color: "#0a1d33", border: "#132a45" },
-            { id: 5, name: "Tây Bắc Đại Tây Dương", color: "#102a45", border: "#1a3b5e" },
-            { id: 6, name: "Đông Bắc Đại Tây Dương", color: "#0e243d", border: "#193759" },
-            { id: 7, name: "Ấn Độ Dương", color: "#0a2138", border: "#14314f" },
-            { id: 8, name: "Tây Ấn Độ Dương", color: "#0c1e36", border: "#162e4d" },
-            { id: 9, name: "Đông Ấn Độ Dương", color: "#0d223a", border: "#183352" },
-            { id: 10, name: "Bắc Băng Dương", color: "#0b253c", border: "#153554" },
-            { id: 11, name: "Nam Băng Dương", color: "#0a1d33", border: "#132a45" },
-            { id: 12, name: "Biển Trung Địa", color: "#102a45", border: "#1a3b5e" }
-        ];
-
-        // 10 QUỐC GIA
-        const NATIONS = [
-            { id: 10, name: "Red Empire", prefix: "Red", color: "#dc2626", borderHex: "#f87171", isMajor: true, gdp: 2450, treasury: 420, happiness: 84, tax: 18.5, welfare: 24, allianceId: null },
-            { id: 11, name: "Blue Kingdom", prefix: "Blue", color: "#2563eb", borderHex: "#60a5fa", isMajor: true, gdp: 2180, treasury: 380, happiness: 81, tax: 20.0, welfare: 22, allianceId: null },
-            { id: 12, name: "Green Republic", prefix: "Green", color: "#059669", borderHex: "#34d399", isMajor: true, gdp: 1950, treasury: 310, happiness: 88, tax: 16.5, welfare: 28, allianceId: null },
-            { id: 13, name: "Yellow Federation", prefix: "Yellow", color: "#d97706", borderHex: "#fbbf24", isMajor: true, gdp: 2300, treasury: 450, happiness: 79, tax: 22.0, welfare: 19, allianceId: null },
-            { id: 14, name: "Lime Principality", prefix: "Lime", color: "#65a30d", borderHex: "#a3e635", isMajor: false, gdp: 540, treasury: 95, happiness: 80, tax: 19.0, welfare: 20, allianceId: null },
-            { id: 15, name: "Cyan Duchy", prefix: "Cyan", color: "#0891b2", borderHex: "#22d3ee", isMajor: false, gdp: 720, treasury: 150, happiness: 86, tax: 15.0, welfare: 25, allianceId: null },
-            { id: 16, name: "Purple State", prefix: "Purple", color: "#7c3aed", borderHex: "#a78bfa", isMajor: false, gdp: 680, treasury: 120, happiness: 82, tax: 17.0, welfare: 21, allianceId: null },
-            { id: 17, name: "Rose Island", prefix: "Rose", color: "#e11d48", borderHex: "#fb7185", isMajor: false, gdp: 890, treasury: 210, happiness: 91, tax: 14.0, welfare: 30, allianceId: null },
-            { id: 18, name: "Orange Domain", prefix: "Orange", color: "#ea580c", borderHex: "#fb923c", isMajor: false, gdp: 610, treasury: 110, happiness: 77, tax: 21.0, welfare: 18, allianceId: null },
-            { id: 19, name: "Violet Realm", prefix: "Violet", color: "#9333ea", borderHex: "#c084fc", isMajor: false, gdp: 790, treasury: 165, happiness: 85, tax: 18.0, welfare: 23, allianceId: null }
-        ];
-
-        let mapType = new Uint8Array(TOTAL_TILES);
-        let seaZoneId = new Uint8Array(TOTAL_TILES);
-        let provinceNum = new Uint16Array(TOTAL_TILES);
-        let borderFlag = new Uint8Array(TOTAL_TILES);
-        let provinceDetails = new Array(TOTAL_TILES);
-        let nationDataMap = {};
-
-        let regionLabels = [];
-
-        let cameraX = 0, cameraY = 0, zoom = 0.6, selectedHexIndex = -1;
-        let isDragging = false, touchStartX = 0, touchStartY = 0, initialPinchDist = null;
-
-        const canvas = document.getElementById('worldMapCanvas');
-        const ctx = canvas.getContext('2d');
-        const miniCanvas = document.getElementById('miniMapCanvas');
-        const miniCtx = miniCanvas.getContext('2d');
-
-        NATIONS.forEach(n => nationDataMap[n.id] = { ...n, totalPop: 0, totalProvinces: 0, totalArmy: 0 });
-
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            clampCamera();
-        }
-
-        function clampCamera() {
-            const radius = BASE_HEX_RADIUS * zoom;
-            const totalWorldWidth = Math.sqrt(3) * radius * COLS;
-            const totalWorldHeight = (3/2) * radius * ROWS;
-            cameraX = Math.min(0, Math.max(canvas.width - totalWorldWidth, cameraX));
-            cameraY = Math.min(0, Math.max(canvas.height - totalWorldHeight, cameraY));
-        }
-
-        function getPixelCoords(c, r) {
-            const radius = BASE_HEX_RADIUS * zoom;
-            const width = Math.sqrt(3) * radius;
-            const height = (3/2) * radius;
-            let x = c * width + (r % 2 !== 0 ? width / 2 : 0);
-            let y = r * height;
-            return { x: x + cameraX, y: y + cameraY, radius };
-        }
-
-        function getGridCoords(px, py) {
-            const radius = BASE_HEX_RADIUS * zoom;
-            const width = Math.sqrt(3) * radius;
-            const height = (3/2) * radius;
-            const relX = px - cameraX;
-            const relY = py - cameraY;
-            let r = Math.round(relY / height);
-            let c = Math.round(relX / width);
-            if (r % 2 !== 0) c = Math.round((relX - width / 2) / width);
-            c = Math.max(0, Math.min(COLS - 1, c));
-            r = Math.max(0, Math.min(ROWS - 1, r));
-            return { col: c, row: r };
-        }
-
-        function getNeighbors(c, r) {
-            const dirs = (r % 2 === 0) ?
-                [{dc:1,dr:0},{dc:0,dr:-1},{dc:-1,dr:-1},{dc:-1,dr:0},{dc:-1,dr:1},{dc:0,dr:1}] :
-                [{dc:1,dr:0},{dc:1,dr:-1},{dc:0,dr:-1},{dc:-1,dr:0},{dc:0,dr:1},{dc:1,dr:1}];
-            const nb = [];
-            for (const d of dirs) {
-                const nc = c + d.dc, nr = r + d.dr;
-                if (nc >= 0 && nc < COLS && nr >= 0 && nr < ROWS)
-                    nb.push({ col: nc, row: nr, index: nr * COLS + nc });
-            }
-            return nb;
-        }
-
-        // --- TÍNH NHÃN VÙNG CHO ZOOM NHỎ ---
-        function computeRegionLabels() {
-            const groups = {};
-            for (let i = 0; i < TOTAL_TILES; i++) {
-                const type = mapType[i];
-                let key;
-                if (type >= 10) {
-                    key = 'nation_' + type;
-                } else if (type === 0) {
-                    const sId = seaZoneId[i];
-                    key = 'sea_' + sId;
-                } else if (type === 1) {
-                    key = 'neutral';
-                } else continue;
-
-                if (!groups[key]) {
-                    groups[key] = { sumC: 0, sumR: 0, count: 0 };
-                }
-                const c = i % COLS;
-                const r = Math.floor(i / COLS);
-                groups[key].sumC += c;
-                groups[key].sumR += r;
-                groups[key].count++;
-            }
-
-            regionLabels = [];
-            for (const [key, data] of Object.entries(groups)) {
-                const cAvg = data.sumC / data.count;
-                const rAvg = data.sumR / data.count;
-                const c = Math.round(cAvg);
-                const r = Math.round(rAvg);
-                let name = '';
-                if (key.startsWith('nation_')) {
-                    const id = parseInt(key.split('_')[1]);
-                    const nat = nationDataMap[id];
-                    if (nat) name = nat.prefix;
-                } else if (key.startsWith('sea_')) {
-                    const sId = parseInt(key.split('_')[1]);
-                    const sea = SEA_ZONES.find(s => s.id === sId);
-                    if (sea) name = sea.name;
-                } else if (key === 'neutral') {
-                    name = 'Trung Lập';
-                }
-                if (name) {
-                    regionLabels.push({ name, c, r });
-                }
-            }
-        }
-
-        // --- TẠO BẢN ĐỒ CỐ ĐỊNH (chỉ gọi một lần) ---
-        function generateMap() {
-            mapType.fill(0);
-            seaZoneId.fill(0);
-            // Phân chia biển 4x3
-            for (let r = 0; r < ROWS; r++) {
-                for (let c = 0; c < COLS; c++) {
-                    const idx = r * COLS + c;
-                    const sc = Math.floor(c / (COLS / 4));
-                    const sr = Math.floor(r / (ROWS / 3));
-                    seaZoneId[idx] = sr * 4 + sc + 1;
-                }
-            }
-
-            // Hạt giống cố định
-            const seeds = [
-                { id: 10, c: 40, r: 30 },  // Red
-                { id: 11, c: 140, r: 30 }, // Blue
-                { id: 12, c: 50, r: 60 },  // Green
-                { id: 13, c: 150, r: 60 }, // Yellow
-                { id: 14, c: 25, r: 45 },  // Lime
-                { id: 15, c: 165, r: 45 }, // Cyan
-                { id: 16, c: 80, r: 25 },  // Purple
-                { id: 17, c: 110, r: 75 }, // Rose
-                { id: 18, c: 65, r: 75 },  // Orange
-                { id: 19, c: 145, r: 20 }, // Violet
-                { id: 1, c: 90, r: 45 },
-                { id: 1, c: 90, r: 55 }
-            ];
-
-            const allPoints = [];
-            for (const seed of seeds) {
-                const radius = (seed.id >= 10 && nationDataMap[seed.id].isMajor) ? 18 : 14;
-                for (let r = 0; r < ROWS; r++) {
-                    for (let c = 0; c < COLS; c++) {
-                        const dist = Math.hypot(c - seed.c, r - seed.r);
-                        if (dist < radius + (Math.sin(c * 0.2 + r * 0.15) * 3)) {
-                            allPoints.push({ c, r, id: seed.id });
-                        }
-                    }
-                }
-            }
-
-            const tileMap = new Map();
-            for (const p of allPoints) {
-                const key = p.r * COLS + p.c;
-                if (!tileMap.has(key)) {
-                    tileMap.set(key, p);
-                } else {
-                    const old = tileMap.get(key);
-                    const distOld = Math.hypot(old.c - seeds.find(s => s.id === old.id)?.c || 0, old.r - seeds.find(s => s.id === old.id)?.r || 0);
-                    const distNew = Math.hypot(p.c - seeds.find(s => s.id === p.id)?.c || 0, p.r - seeds.find(s => s.id === p.id)?.r || 0);
-                    if (distNew < distOld) tileMap.set(key, p);
-                }
-            }
-            for (const [key, p] of tileMap) mapType[key] = p.id;
-
-            // Đảm bảo số ô cho mỗi quốc gia
-            for (const n of NATIONS) {
-                let count = 0;
-                for (let i = 0; i < TOTAL_TILES; i++) if (mapType[i] === n.id) count++;
-                const target = n.isMajor ? Math.floor(Math.random() * 26) + 100 : Math.floor(Math.random() * 26) + 50;
-                if (count < target) {
-                    const borderCells = [];
-                    for (let i = 0; i < TOTAL_TILES; i++) {
-                        if (mapType[i] === n.id) {
-                            const c = i % COLS, r = Math.floor(i / COLS);
-                            for (const nb of getNeighbors(c, r)) {
-                                if (mapType[nb.index] === 0) borderCells.push(nb.index);
-                            }
-                        }
-                    }
-                    let need = target - count;
-                    while (need > 0 && borderCells.length > 0) {
-                        const idx = borderCells.splice(Math.floor(Math.random() * borderCells.length), 1)[0];
-                        if (mapType[idx] === 0) { mapType[idx] = n.id; need--; }
-                    }
-                }
-            }
-
-            // Xóa cụm trung lập nhỏ (< 10 ô) -> biển
-            for (let i = 0; i < TOTAL_TILES; i++) {
-                if (mapType[i] === 1) {
-                    let count = 0;
-                    const stack = [i];
-                    const visited = new Set();
-                    while (stack.length > 0) {
-                        const idx = stack.pop();
-                        if (visited.has(idx)) continue;
-                        visited.add(idx);
-                        count++;
-                        const c = idx % COLS, r = Math.floor(idx / COLS);
-                        for (const nb of getNeighbors(c, r)) {
-                            if (mapType[nb.index] === 1 && !visited.has(nb.index)) stack.push(nb.index);
-                        }
-                    }
-                    if (count < 10) {
-                        for (const idx of visited) mapType[idx] = 0;
-                    }
-                }
-            }
-
-            // Cập nhật seaZoneId cho biển
-            for (let i = 0; i < TOTAL_TILES; i++) {
-                if (mapType[i] === 0) {
-                    const c = i % COLS, r = Math.floor(i / COLS);
-                    const sc = Math.floor(c / (COLS / 4));
-                    const sr = Math.floor(r / (ROWS / 3));
-                    seaZoneId[i] = sr * 4 + sc + 1;
-                }
-            }
-
-            // Đặt camera
-            const radius = BASE_HEX_RADIUS * zoom;
-            const totalW = Math.sqrt(3) * radius * COLS;
-            const totalH = (3/2) * radius * ROWS;
-            cameraX = (canvas.width - totalW) / 2;
-            cameraY = (canvas.height - totalH) / 2;
-            clampCamera();
-
-            recalculateProvincesAndBorders();
-            generateProvinceDetails();
-            recalculateNationTotals();
-            computeRegionLabels();
-        }
-
-        function recalculateProvincesAndBorders() {
-            borderFlag.fill(0);
-            provinceNum.fill(0);
-            const counters = {};
-            NATIONS.forEach(n => counters[n.id] = 1);
-            for (let i = 0; i < TOTAL_TILES; i++) {
-                const type = mapType[i];
-                if (type >= 10) {
-                    provinceNum[i] = counters[type]++;
-                    const c = i % COLS, r = Math.floor(i / COLS);
-                    for (const nb of getNeighbors(c, r)) {
-                        if (mapType[nb.index] !== type) { borderFlag[i] = 1; break; }
-                    }
-                }
-            }
-        }
-
-        function generateProvinceDetails() {
-            // Đầu tiên, tạo danh sách các tỉnh cho mỗi quốc gia
-            const nationProvIndices = {};
-            NATIONS.forEach(n => nationProvIndices[n.id] = []);
-            for (let i = 0; i < TOTAL_TILES; i++) {
-                const type = mapType[i];
-                if (type >= 10) {
-                    nationProvIndices[type].push(i);
-                }
-            }
-
-            // Với mỗi quốc gia, chọn ngẫu nhiên 10-15 tỉnh làm quân đồn trú
-            const garrisonCounts = {};
-            for (const n of NATIONS) {
-                const total = nationProvIndices[n.id].length;
-                const garrison = Math.min(total, Math.floor(Math.random() * 6) + 10); // 10-15
-                // Chọn ngẫu nhiên garrison tỉnh
-                const shuffled = nationProvIndices[n.id].sort(() => Math.random() - 0.5);
-                const selected = shuffled.slice(0, garrison);
-                garrisonCounts[n.id] = new Set(selected);
-            }
-
-            // Gán chi tiết cho từng tỉnh
-            for (let i = 0; i < TOTAL_TILES; i++) {
-                const type = mapType[i];
-                if (type === 0) {
-                    provinceDetails[i] = { type: "Sea", popNum: 0, pop: "0", industry: 0, army: 0, demographics: [] };
-                } else if (type === 1) {
-                    const rawPop = Math.random() * 0.3 + 0.1;
-                    provinceDetails[i] = {
-                        type: "Neutral",
-                        popNum: rawPop,
-                        pop: rawPop.toFixed(2),
-                        industry: Math.floor(Math.random() * 20) + 5,
-                        army: 0, // trung lập không có quân
-                        demographics: [
-                            { name: "Dân Bản Địa Trung Lập", pct: 85, color: "#9ca3af" },
-                            { name: "Sắc Tộc Khác", pct: 15, color: "#6b7280" }
-                        ]
-                    };
-                } else {
-                    const mainNat = nationDataMap[type];
-                    const rawPop = Math.random() * 2.2 + 0.8;
-                    const industry = Math.floor(Math.random() * 60) + 35;
-                    // Kiểm tra tỉnh có được chọn làm quân đồn trú không
-                    const isGarrison = garrisonCounts[type] && garrisonCounts[type].has(i);
-                    const army = isGarrison ? Math.floor(Math.random() * 40) + 10 : 0; // 10-50K nếu có, ngược lại 0
-                    const mainPct = Math.floor(Math.random() * 20) + 75;
-                    const otherNations = NATIONS.filter(n => n.id !== type);
-                    const neighborNat = otherNations[Math.floor(Math.random() * otherNations.length)];
-                    const remainingPct = 100 - mainPct;
-                    provinceDetails[i] = {
-                        type: "NationProvince",
-                        popNum: rawPop,
-                        pop: rawPop.toFixed(2),
-                        industry: industry,
-                        army: army,
-                        demographics: [
-                            { name: `Dân ${mainNat.name}`, pct: mainPct, color: mainNat.color },
-                            { name: `Dân ${neighborNat.name}`, pct: remainingPct, color: neighborNat.color }
-                        ]
-                    };
-                }
-            }
-        }
-
-        function recalculateNationTotals() {
-            NATIONS.forEach(n => {
-                nationDataMap[n.id].totalPop = 0;
-                nationDataMap[n.id].totalProvinces = 0;
-                nationDataMap[n.id].totalArmy = 0;
-            });
-            for (let i = 0; i < TOTAL_TILES; i++) {
-                const type = mapType[i];
-                if (type >= 10 && provinceDetails[i]) {
-                    nationDataMap[type].totalPop += provinceDetails[i].popNum;
-                    nationDataMap[type].totalProvinces++;
-                    nationDataMap[type].totalArmy += provinceDetails[i].army;
-                }
-            }
-        }
-
-        // --- RENDER ---
-        function renderMap() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            const radius = BASE_HEX_RADIUS * zoom;
-            const width = Math.sqrt(3) * radius;
-            const height = (3/2) * radius;
-
-            const minRow = Math.max(0, Math.floor((-cameraY - 30) / height));
-            const maxRow = Math.min(ROWS - 1, Math.ceil((canvas.height - cameraY + 30) / height));
-            const minCol = Math.max(0, Math.floor((-cameraX - 30) / width));
-            const maxCol = Math.min(COLS - 1, Math.ceil((canvas.width - cameraX + 30) / width));
-
-            const isZoomedOut = zoom < ZOOM_THRESHOLD;
-
-            for (let r = minRow; r <= maxRow; r++) {
-                for (let c = minCol; c <= maxCol; c++) {
-                    const idx = r * COLS + c;
-                    const type = mapType[idx];
-                    const isBorder = borderFlag[idx] === 1;
-                    const isSelected = (idx === selectedHexIndex);
-                    const { x, y } = getPixelCoords(c, r);
-
-                    ctx.beginPath();
-                    for (let i = 0; i < 6; i++) {
-                        const angle = Math.PI / 3 * i - Math.PI / 6;
-                        const hx = x + radius * Math.cos(angle);
-                        const hy = y + radius * Math.sin(angle);
-                        i === 0 ? ctx.moveTo(hx, hy) : ctx.lineTo(hx, hy);
-                    }
-                    ctx.closePath();
-
-                    if (type === 0) {
-                        const sea = SEA_ZONES[seaZoneId[idx] - 1] || SEA_ZONES[0];
-                        ctx.fillStyle = sea.color;
-                        ctx.strokeStyle = sea.border;
-                        ctx.lineWidth = 0.3;
-                    } else if (type === 1) {
-                        ctx.fillStyle = "#2d3748";
-                        ctx.strokeStyle = "#4a5568";
-                        ctx.lineWidth = 0.4;
-                    } else {
-                        const nat = nationDataMap[type];
-                        ctx.fillStyle = nat.color;
-                        ctx.strokeStyle = isBorder ? nat.borderHex : "rgba(0,0,0,0.3)";
-                        ctx.lineWidth = isBorder ? 1.8 : 0.4;
-                    }
-                    if (isSelected) {
-                        ctx.strokeStyle = "#fbbf24";
-                        ctx.lineWidth = 3.0;
-                    }
-                    ctx.fill();
-                    ctx.stroke();
-
-                    // Khi zoom lớn, hiển thị quân số (nếu > 0)
-                    if (!isZoomedOut && type >= 10) {
-                        const army = provinceDetails[idx]?.army || 0;
-                        if (army > 0) {
-                            ctx.fillStyle = '#ffffff';
-                            ctx.font = `bold ${Math.floor(8 * zoom)}px sans-serif`;
-                            ctx.textAlign = 'center';
-                            ctx.textBaseline = 'middle';
-                            ctx.shadowColor = 'rgba(0,0,0,0.9)';
-                            ctx.shadowBlur = 4;
-                            ctx.fillText(`${army}K`, x, y);
-                            ctx.shadowBlur = 0;
-                        }
-                    }
-                }
-            }
-
-            // Khi zoom nhỏ, vẽ nhãn vùng
-            if (isZoomedOut) {
-                for (const label of regionLabels) {
-                    const { x, y } = getPixelCoords(label.c, label.r);
-                    if (x > -50 && x < canvas.width + 50 && y > -50 && y < canvas.height + 50) {
-                        ctx.fillStyle = '#ffffff';
-                        ctx.font = `bold ${Math.floor(9 * zoom + 8)}px sans-serif`;
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.shadowColor = 'rgba(0,0,0,0.8)';
-                        ctx.shadowBlur = 6;
-                        ctx.fillText(label.name, x, y);
-                        ctx.shadowBlur = 0;
-                    }
-                }
-            }
-
-            renderMiniMap();
-            requestAnimationFrame(renderMap);
-        }
-
-        // --- MINI MAP ---
-        function renderMiniMap() {
-            const mW = miniCanvas.width, mH = miniCanvas.height;
-            miniCtx.clearRect(0, 0, mW, mH);
-            const cellW = mW / COLS, cellH = mH / ROWS;
-            for (let r = 0; r < ROWS; r += 2) {
-                for (let c = 0; c < COLS; c += 2) {
-                    const idx = r * COLS + c;
-                    const type = mapType[idx];
-                    if (type === 0) miniCtx.fillStyle = "#0d1b2a";
-                    else if (type === 1) miniCtx.fillStyle = "#374151";
-                    else {
-                        const nat = nationDataMap[type];
-                        miniCtx.fillStyle = nat ? nat.color : "#ffffff";
-                    }
-                    miniCtx.fillRect(c * cellW, r * cellH, cellW * 2, cellH * 2);
-                }
-            }
-            const radius = BASE_HEX_RADIUS * zoom;
-            const totalW = Math.sqrt(3) * radius * COLS;
-            const totalH = (3/2) * radius * ROWS;
-            const vw = canvas.width / totalW, vh = canvas.height / totalH;
-            const boxW = Math.max(12, mW * vw);
-            const boxH = Math.max(8, mH * vh);
-            const boxX = Math.max(0, Math.min(mW - boxW, (-cameraX / totalW) * mW));
-            const boxY = Math.max(0, Math.min(mH - boxH, (-cameraY / totalH) * mH));
-            miniCtx.strokeStyle = "#fbbf24";
-            miniCtx.lineWidth = 1.5;
-            miniCtx.strokeRect(boxX, boxY, boxW, boxH);
-            miniCtx.fillStyle = "rgba(251, 191, 36, 0.15)";
-            miniCtx.fillRect(boxX, boxY, boxW, boxH);
-        }
-
-        // --- MODAL THÔNG TIN TỈNH ---
-        function showProvinceInspector(idx) {
-            selectedHexIndex = idx;
-            const type = mapType[idx];
-            const pNum = provinceNum[idx];
-            const details = provinceDetails[idx];
-            const modal = document.getElementById('province-modal');
-            const typeEl = document.getElementById('modal-region-type');
-            const nameEl = document.getElementById('modal-prov-name');
-            const ownerNameEl = document.getElementById('modal-owner-name');
-            const ownerColorEl = document.getElementById('modal-owner-color');
-            const provPopEl = document.getElementById('modal-prov-pop');
-            const provIndEl = document.getElementById('modal-prov-ind');
-            const provArmyEl = document.getElementById('modal-prov-army');
-            const demoContainer = document.getElementById('modal-demographics-bars');
-
-            const natPopEl = document.getElementById('modal-nat-total-pop');
-            const natGdpEl = document.getElementById('modal-nat-gdp');
-            const natTreasuryEl = document.getElementById('modal-nat-treasury');
-            const natHapEl = document.getElementById('modal-nat-happiness');
-            const natTaxEl = document.getElementById('modal-nat-tax');
-            const natWelEl = document.getElementById('modal-nat-welfare');
-            const natArmyEl = document.getElementById('modal-nat-total-army');
-            const natAllianceTag = document.getElementById('modal-nat-alliance-tag');
-
-            if (type === 0) {
-                const sea = SEA_ZONES[seaZoneId[idx] - 1];
-                typeEl.textContent = "Vùng Biển / Hải Phận";
-                nameEl.textContent = sea ? sea.name : "Biển";
-                ownerNameEl.textContent = "Hải Địa Quốc Tế";
-                ownerColorEl.style.backgroundColor = sea ? sea.color : "#0a1d33";
-                provPopEl.textContent = "0";
-                provIndEl.textContent = "0/100";
-                provArmyEl.textContent = "0K";
-                natPopEl.textContent = "N/A";
-                natGdpEl.textContent = "N/A";
-                natTreasuryEl.textContent = "N/A";
-                natHapEl.textContent = "N/A";
-                natTaxEl.textContent = "N/A";
-                natWelEl.textContent = "N/A";
-                natArmyEl.textContent = "0K";
-                natAllianceTag.textContent = "Trung Lập";
-                demoContainer.innerHTML = '<div class="text-gray-500 italic text-[10px]">Không có cư dân</div>';
-            } else if (type === 1) {
-                typeEl.textContent = "Vùng Đất Trung Lập";
-                nameEl.textContent = "Neutral Province";
-                ownerNameEl.textContent = "Không Quốc Gia";
-                ownerColorEl.style.backgroundColor = "#374151";
-                provPopEl.textContent = `${details.pop}M`;
-                provIndEl.textContent = `${details.industry}/100`;
-                provArmyEl.textContent = "0K";
-                natPopEl.textContent = "Tự Do";
-                natGdpEl.textContent = "N/A";
-                natTreasuryEl.textContent = "$0";
-                natHapEl.textContent = "50%";
-                natTaxEl.textContent = "0%";
-                natWelEl.textContent = "0%";
-                natArmyEl.textContent = "0K";
-                natAllianceTag.textContent = "Không Liên Minh";
-                demoContainer.innerHTML = details.demographics.map(d => `
-                    <div>
-                        <div class="flex justify-between text-[10px] text-gray-300 mb-0.5">
-                            <span>${d.name}</span>
-                            <span class="font-bold">${d.pct}%</span>
-                        </div>
-                        <div class="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
-                            <div class="h-full rounded-full" style="width: ${d.pct}%; background-color: ${d.color}"></div>
-                        </div>
-                    </div>
-                `).join('');
-            } else {
-                const nat = nationDataMap[type];
-                typeEl.textContent = nat.isMajor ? `Cường Quốc (${nat.totalProvinces} Tỉnh)` : `Tiểu Quốc (${nat.totalProvinces} Tỉnh)`;
-                nameEl.textContent = `${nat.prefix} ${pNum}`;
-                ownerNameEl.textContent = nat.name;
-                ownerColorEl.style.backgroundColor = nat.color;
-                provPopEl.textContent = `${details.pop}M`;
-                provIndEl.textContent = `${details.industry}/100`;
-                provArmyEl.textContent = `${details.army}K`;
-                natPopEl.textContent = `${nat.totalPop.toFixed(1)}M Dân`;
-                natGdpEl.textContent = `$${nat.gdp.toLocaleString()}B`;
-                natTreasuryEl.textContent = `$${nat.treasury}B`;
-                natHapEl.textContent = `${nat.happiness}%`;
-                natTaxEl.textContent = `${nat.tax}%`;
-                natWelEl.textContent = `${nat.welfare}% GDP`;
-                natArmyEl.textContent = `${nat.totalArmy}K`;
-                natAllianceTag.textContent = "Độc Lập (Chưa Gia Nhập)";
-                natAllianceTag.className = "text-[9px] text-amber-400 font-semibold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/30";
-                demoContainer.innerHTML = details.demographics.map(d => `
-                    <div>
-                        <div class="flex justify-between text-[10px] text-gray-300 mb-0.5">
-                            <span>${d.name}</span>
-                            <span class="font-bold font-mono">${d.pct}%</span>
-                        </div>
-                        <div class="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
-                            <div class="h-full rounded-full" style="width: ${d.pct}%; background-color: ${d.color}"></div>
-                        </div>
-                    </div>
-                `).join('');
-            }
-
-            modal.classList.remove('hidden');
-        }
-
-        // --- MODAL DANH SÁCH QUỐC GIA & LIÊN MINH ---
-        function renderNationsListModal() {
-            const containerNations = document.getElementById('tab-content-nations');
-            const containerAlliances = document.getElementById('tab-content-alliances');
-
-            containerNations.innerHTML = NATIONS.map(n => {
-                const data = nationDataMap[n.id];
-                return `
-                    <div class="bg-gray-950 p-2.5 sm:p-3 rounded-xl border border-gray-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-                        <div class="flex items-center gap-2.5">
-                            <span class="w-4 h-4 rounded-full border border-white/20 shrink-0" style="background-color: ${n.color}"></span>
-                            <div>
-                                <div class="flex items-center gap-2 flex-wrap">
-                                    <h4 class="font-bold text-white text-sm">${n.name}</h4>
-                                    <span class="text-[10px] px-2 py-0.5 rounded ${n.isMajor ? 'bg-red-500/20 text-red-300 border border-red-500/30' : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'}">
-                                        ${n.isMajor ? 'Cường Quốc (' + (data ? data.totalProvinces : 0) + ' Tỉnh)' : 'Tiểu Quốc (' + (data ? data.totalProvinces : 0) + ' Tỉnh)'}
-                                    </span>
-                                </div>
-                                <div class="text-[11px] text-amber-400 mt-0.5">Trạng thái: <strong>Quốc Gia Độc Lập</strong></div>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-3 sm:grid-cols-7 gap-1.5 sm:gap-2 text-[10px] font-mono w-full md:w-auto bg-gray-900 p-2 rounded-lg border border-gray-800 shrink-0">
-                            <div><span class="text-gray-500">Dân Số:</span><br><strong class="text-gray-200">${data ? data.totalPop.toFixed(1) : 0}M</strong></div>
-                            <div><span class="text-gray-500">GDP:</span><br><strong class="text-emerald-400">$${n.gdp}B</strong></div>
-                            <div><span class="text-gray-500">Kho Bạc:</span><br><strong class="text-amber-400">$${n.treasury}B</strong></div>
-                            <div><span class="text-gray-500">Hạnh Phúc:</span><br><strong class="text-pink-400">${n.happiness}%</strong></div>
-                            <div><span class="text-gray-500">Thuế:</span><br><strong class="text-blue-400">${n.tax}%</strong></div>
-                            <div><span class="text-gray-500">An Sinh:</span><br><strong class="text-purple-400">${n.welfare}%</strong></div>
-                            <div><span class="text-gray-500">Quân Số:</span><br><strong class="text-red-400">${data ? data.totalArmy : 0}K</strong></div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            containerAlliances.innerHTML = ALLIANCES.map(a => `
-                <div class="bg-gray-950 p-3 rounded-xl border border-gray-800 flex justify-between items-center gap-2">
-                    <div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-sm">🛡️</span>
-                            <h4 class="font-bold text-indigo-300 text-sm">${a.name}</h4>
-                        </div>
-                        <p class="text-xs text-gray-400 mt-1">${a.desc}</p>
-                    </div>
-                    <div class="text-right shrink-0">
-                        <span class="text-[10px] bg-gray-800 text-gray-400 px-2.5 py-1 rounded-full border border-gray-700">Chưa Có Thành Viên</span>
-                    </div>
-                </div>
-            `).join('');
-
-            document.getElementById('nations-list-modal').classList.remove('hidden');
-        }
-
-        // --- SỰ KIỆN ---
-        document.getElementById('tab-btn-nations').addEventListener('click', function() {
-            document.getElementById('tab-content-nations').classList.remove('hidden');
-            document.getElementById('tab-content-alliances').classList.add('hidden');
-            this.className = "bg-indigo-600 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition";
-            document.getElementById('tab-btn-alliances').className = "bg-gray-800 text-gray-400 hover:text-white font-bold text-xs px-3 py-1.5 rounded-lg transition";
-        });
-        document.getElementById('tab-btn-alliances').addEventListener('click', function() {
-            document.getElementById('tab-content-alliances').classList.remove('hidden');
-            document.getElementById('tab-content-nations').classList.add('hidden');
-            this.className = "bg-indigo-600 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition";
-            document.getElementById('tab-btn-nations').className = "bg-gray-800 text-gray-400 hover:text-white font-bold text-xs px-3 py-1.5 rounded-lg transition";
-        });
-        document.getElementById('btn-toggle-nations-list').addEventListener('click', renderNationsListModal);
-        document.getElementById('btn-close-nations-modal').addEventListener('click', () => {
-            document.getElementById('nations-list-modal').classList.add('hidden');
-        });
-
-        miniCanvas.addEventListener('click', (e) => {
-            const rect = miniCanvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left) / miniCanvas.width;
-            const y = (e.clientY - rect.top) / miniCanvas.height;
-            const radius = BASE_HEX_RADIUS * zoom;
-            const totalW = Math.sqrt(3) * radius * COLS;
-            const totalH = (3/2) * radius * ROWS;
-            cameraX = canvas.width / 2 - x * totalW;
-            cameraY = canvas.height / 2 - y * totalH;
-            clampCamera();
-        });
-
-        // Sự kiện chuột và cảm ứng
-        canvas.addEventListener('mousedown', (e) => {
-            isDragging = true;
-            touchStartX = e.clientX - cameraX;
-            touchStartY = e.clientY - cameraY;
-        });
-        window.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
-            cameraX = e.clientX - touchStartX;
-            cameraY = e.clientY - touchStartY;
-            clampCamera();
-        });
-        window.addEventListener('mouseup', () => { isDragging = false; });
-
-        canvas.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
-                isDragging = true;
-                touchStartX = e.touches[0].clientX - cameraX;
-                touchStartY = e.touches[0].clientY - cameraY;
-            } else if (e.touches.length === 2) {
-                isDragging = false;
-                initialPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-            }
-        });
-        canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            if (isDragging && e.touches.length === 1) {
-                cameraX = e.touches[0].clientX - touchStartX;
-                cameraY = e.touches[0].clientY - touchStartY;
-                clampCamera();
-            } else if (e.touches.length === 2 && initialPinchDist) {
-                const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                const factor = dist / initialPinchDist;
-                zoom = Math.max(0.4, Math.min(2.5, zoom * (factor > 1 ? 1.02 : 0.98)));
-                clampCamera();
-                document.getElementById('zoom-text').textContent = Math.round(zoom * 100) + '%';
-                initialPinchDist = dist;
-            }
-        }, { passive: false });
-        canvas.addEventListener('touchend', () => { isDragging = false; initialPinchDist = null; });
-
-        canvas.addEventListener('click', (e) => {
-            const grid = getGridCoords(e.clientX, e.clientY);
-            const idx = grid.row * COLS + grid.col;
-            showProvinceInspector(idx);
-        });
-
-        canvas.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            const factor = e.deltaY < 0 ? 1.1 : 0.9;
-            zoom = Math.max(0.4, Math.min(2.5, zoom * factor));
-            clampCamera();
-            document.getElementById('zoom-text').textContent = Math.round(zoom * 100) + '%';
-        }, { passive: false });
-
-        document.getElementById('btn-close-modal').addEventListener('click', () => {
-            document.getElementById('province-modal').classList.add('hidden');
-            selectedHexIndex = -1;
-        });
-
-        window.addEventListener('resize', resizeCanvas);
-
-        window.onload = () => {
-            resizeCanvas();
-            generateMap(); // chỉ gọi một lần
-            renderMap();
-        };
-    </script>
+    <!-- ====== JAVASCRIPT ====== -->
+    <script src="js/config.js"></script>
+    <script src="js/buildings.js"></script>
+    <script src="js/map.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/ai.js"></script>
+    <script src="js/multiplayer.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>
