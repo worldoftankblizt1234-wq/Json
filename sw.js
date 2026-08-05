@@ -1,4 +1,4 @@
-const CACHE_NAME = 'map-nations-pwa-v2';
+const CACHE_NAME = 'map-nations-pwa-v3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
