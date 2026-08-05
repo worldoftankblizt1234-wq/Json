@@ -2,8 +2,23 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Bản Đồ Địa Lý 12,000 Ô Tĩnh - Tra Cứu Tỉnh Lộc</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Bản Đồ Địa Lý 12,000 Ô (PC & Mobile Web App)</title>
+
+    <!-- PWA Manifest Link -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#030712">
+
+    <!-- iOS / Safari Native Web App Tags (Cấu hình Web App toàn màn hình cho Mobile) -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Bản Đồ 12k">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/854/854878.png">
+
+    <!-- Android / Chrome Fullscreen Tags -->
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         * {
@@ -24,72 +39,136 @@
             font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
+        /* Chỉ hiện cảnh báo xoay màn hình trên thiết bị di động màn hình nhỏ dạng Portrait */
         #portrait-warning {
             display: none;
         }
-        @media screen and (orientation: portrait) {
+        @media screen and (max-width: 768px) and (orientation: portrait) {
             #portrait-warning {
                 display: flex;
             }
+        }
+
+        /* Tùy chỉnh thanh cuộn UI */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 4px;
         }
     </style>
 </head>
 <body>
 
-    <!-- Màn hình cảnh báo xoay ngang màn hình -->
+    <!-- Màn hình cảnh báo xoay ngang dành riêng cho Điện thoại Mobile -->
     <div id="portrait-warning" class="fixed inset-0 z-50 bg-gray-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
         <div class="w-16 h-16 mb-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-3xl animate-bounce">
             📲
         </div>
         <h2 class="text-base font-bold text-indigo-400 mb-1">VUI LÒNG XOAY NGANG ĐIỆN THOẠI</h2>
-        <p class="text-xs text-gray-400 max-w-xs">Xoay ngang màn hình (Landscape) để quan sát toàn bộ Bản đồ 12,000 ô và kiểm tra thông tin các tỉnh.</p>
+        <p class="text-xs text-gray-400 max-w-xs">Xoay ngang màn hình (Landscape) để trải nghiệm giao diện Web App bản đồ 12,000 ô đầy đủ nhất.</p>
     </div>
 
-    <!-- Thanh trạng thái giao diện tối giản phía trên -->
-    <div class="absolute top-2 left-2 z-20 pointer-events-none flex items-center gap-2">
-        <div class="pointer-events-auto bg-gray-900/90 backdrop-blur-md border border-gray-800/80 px-3 py-1.5 rounded-full flex items-center gap-3 text-xs shadow-2xl">
-            <div class="flex items-center gap-1.5">
+    <!-- Thanh công cụ phía trên (Hỗ trợ cả PC/Laptop & Mobile) -->
+    <div class="absolute top-2 left-2 right-2 z-20 pointer-events-none flex flex-wrap items-center justify-between gap-2">
+        
+        <!-- Bên trái: Thông tin tiêu đề & Zoom -->
+        <div class="pointer-events-auto bg-gray-900/90 backdrop-blur-md border border-gray-800/80 px-3 py-1.5 rounded-2xl flex items-center gap-3 text-xs shadow-2xl">
+            <div class="flex items-center gap-2">
                 <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span class="font-bold text-gray-200">BẢN ĐỒ TĨNH 12,000 Ô (150x80)</span>
+                <span class="font-bold text-gray-200 hidden sm:inline">BẢN ĐỒ TĨNH 12,000 Ô</span>
+                <span class="font-bold text-gray-200 sm:hidden">MAP 12K</span>
             </div>
             <span class="text-gray-700">|</span>
             <div class="text-[11px] text-gray-400">
-                10 Quốc gia • Chạm ô để tra cứu thông tin
-            </div>
-            <span class="text-gray-700">|</span>
-            <div class="text-[11px] text-gray-400">
-                Zoom: <strong id="zoom-text" class="text-indigo-400 font-mono">100%</strong>
+                10 Quốc gia • Zoom: <strong id="zoom-text" class="text-indigo-400 font-mono">100%</strong>
             </div>
         </div>
 
-        <button id="btn-regen-map" class="pointer-events-auto bg-gray-800 hover:bg-gray-700 active:scale-95 text-gray-300 font-bold text-xs px-3 py-1.5 rounded-full border border-gray-700 shadow-lg">
-            🔄 Tạo Địa Hình Mới
-        </button>
+        <!-- Bên phải: Các nút thao tác nhanh (Cài đặt Web App, Phím tắt PC, Đổi địa hình, Fullscreen) -->
+        <div class="pointer-events-auto flex items-center gap-1.5">
+            <!-- Nút Cài đặt Web App (Hiện khi PWA khả dụng trên Mobile/Chrome) -->
+            <button id="btn-install-pwa" class="hidden bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs px-3 py-1.5 rounded-full shadow-lg transition-all active:scale-95 flex items-center gap-1">
+                <span>📲</span> <span class="hidden sm:inline">Cài Đặt App</span>
+            </button>
+
+            <!-- Nút Hướng dẫn Phím tắt Laptop/PC -->
+            <button id="btn-desktop-help" class="bg-gray-800/90 hover:bg-gray-700 text-gray-300 font-bold text-xs px-3 py-1.5 rounded-full border border-gray-700 shadow-lg transition-all active:scale-95 hidden sm:flex items-center gap-1">
+                <span>⌨️</span> <span>Phím Tắt</span>
+            </button>
+
+            <!-- Nút Tạo lại Địa Hình -->
+            <button id="btn-regen-map" class="bg-gray-800/90 hover:bg-gray-700 text-gray-300 font-bold text-xs px-3 py-1.5 rounded-full border border-gray-700 shadow-lg transition-all active:scale-95 flex items-center gap-1">
+                <span>🔄</span> <span class="hidden sm:inline">Địa Hình Mới</span>
+            </button>
+
+            <!-- Nút Bật/Tắt Fullscreen Toàn Màn Hình cho Laptop/PC -->
+            <button id="btn-fullscreen" class="bg-gray-800/90 hover:bg-gray-700 text-gray-300 font-bold text-xs px-2.5 py-1.5 rounded-full border border-gray-700 shadow-lg transition-all active:scale-95 flex items-center justify-center">
+                🖥️
+            </button>
+        </div>
+    </div>
+
+    <!-- Hướng dẫn Phím tắt cho Laptop/PC (Modal) -->
+    <div id="shortcuts-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-700 rounded-2xl p-5 max-w-md w-full shadow-2xl">
+            <div class="flex justify-between items-center border-b border-gray-800 pb-3 mb-4">
+                <h3 class="text-sm font-bold text-indigo-400 flex items-center gap-2">
+                    <span>⌨️</span> HƯỚNG DẪN ĐIỀU KHIỂN TRÊN LAPTOP / PC
+                </h3>
+                <button id="btn-close-shortcuts" class="text-gray-400 hover:text-white font-bold text-sm">✕</button>
+            </div>
+            <div class="space-y-2.5 text-xs text-gray-300">
+                <div class="flex justify-between bg-gray-950 p-2 rounded-lg border border-gray-800">
+                    <span class="text-gray-400">Di chuyển Camera:</span>
+                    <span class="font-mono text-amber-400 font-bold">W A S D  /  Mũi Tên  /  Kéo Chuột</span>
+                </div>
+                <div class="flex justify-between bg-gray-950 p-2 rounded-lg border border-gray-800">
+                    <span class="text-gray-400">Phóng to / Thu nhỏ:</span>
+                    <span class="font-mono text-amber-400 font-bold">Lăn Cuột  /  Phím + và -</span>
+                </div>
+                <div class="flex justify-between bg-gray-950 p-2 rounded-lg border border-gray-800">
+                    <span class="text-gray-400">Reset Camera về giữa:</span>
+                    <span class="font-mono text-amber-400 font-bold">Phím R</span>
+                </div>
+                <div class="flex justify-between bg-gray-950 p-2 rounded-lg border border-gray-800">
+                    <span class="text-gray-400">Xem thông tin ô tỉnh:</span>
+                    <span class="font-mono text-amber-400 font-bold">Click Chuột Trái</span>
+                </div>
+                <div class="flex justify-between bg-gray-950 p-2 rounded-lg border border-gray-800">
+                    <span class="text-gray-400">Bật / Tắt Toàn Màn Hình:</span>
+                    <span class="font-mono text-amber-400 font-bold">Phím F</span>
+                </div>
+            </div>
+            <button id="btn-close-shortcuts-2" class="w-full mt-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 rounded-xl text-xs transition-all">
+                Đã Hiểu (Đóng)
+            </button>
+        </div>
     </div>
 
     <!-- Mini-Map Floating Box (Góc dưới bên phải) -->
     <div class="absolute bottom-3 right-3 z-30 bg-gray-900/90 border border-gray-700/80 p-1.5 rounded-xl shadow-2xl backdrop-blur-md">
         <div class="text-[10px] text-gray-400 font-bold mb-1 flex justify-between items-center px-1">
             <span>🌍 MINI-MAP</span>
-            <span class="text-amber-400 text-[9px]">Bản đồ thu nhỏ</span>
+            <span class="text-amber-400 text-[9px]">Click di chuyển</span>
         </div>
         <div class="relative overflow-hidden rounded-lg border border-gray-800">
             <canvas id="miniMapCanvas" width="180" height="96" class="block cursor-pointer active:brightness-125"></canvas>
         </div>
     </div>
 
-    <!-- Bảng Thông Tin Chi Tiết Tỉnh (Province Details Inspector Modal) -->
-    <div id="province-modal" class="hidden absolute top-12 left-3 z-40 w-72 bg-gray-900/95 backdrop-blur-md border border-indigo-500/40 rounded-2xl p-3.5 shadow-2xl transition-all">
-        <div class="flex justify-between items-start border-b border-gray-800 pb-2 mb-2.5">
+    <!-- Bảng Báo Cáo Thông Tin Chi Tiết Tỉnh / Vùng Biển -->
+    <div id="province-modal" class="hidden absolute top-14 left-3 z-40 w-72 sm:w-80 bg-gray-900/95 backdrop-blur-md border border-indigo-500/40 rounded-2xl p-4 shadow-2xl transition-all">
+        <div class="flex justify-between items-start border-b border-gray-800 pb-2 mb-3">
             <div>
-                <div class="text-xs text-indigo-400 font-semibold tracking-wide uppercase" id="modal-region-type">Lục địa / Tỉnh lộc</div>
-                <h3 class="text-lg font-extrabold text-white" id="modal-prov-name">Red 1</h3>
+                <div class="text-[10px] text-indigo-400 font-semibold tracking-wide uppercase" id="modal-region-type">Lục địa / Tỉnh lộc</div>
+                <h3 class="text-base sm:text-lg font-extrabold text-white" id="modal-prov-name">Red 1</h3>
             </div>
             <button id="btn-close-modal" class="text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">✕</button>
         </div>
 
         <div class="space-y-2.5 text-xs">
-            <!-- Quốc gia quản lý -->
             <div class="flex items-center justify-between bg-gray-950/80 p-2 rounded-xl border border-gray-800/80">
                 <span class="text-gray-400">Quốc gia kiểm soát:</span>
                 <div class="flex items-center gap-1.5 font-bold" id="modal-owner-box">
@@ -98,7 +177,6 @@
                 </div>
             </div>
 
-            <!-- Chỉ số Dân số & Công nghiệp -->
             <div class="grid grid-cols-2 gap-2">
                 <div class="bg-gray-950/80 p-2 rounded-xl border border-gray-800/80 text-center">
                     <div class="text-[10px] text-gray-400">👥 Dân Số</div>
@@ -110,30 +188,48 @@
                 </div>
             </div>
 
-            <!-- Cơ cấu Sắc tộc / Dân số (%) -->
             <div class="bg-gray-950/80 p-2.5 rounded-xl border border-gray-800/80">
-                <div class="text-[11px] font-bold text-gray-300 mb-1.5 flex justify-between">
-                    <span>Cơ Cấu Thành Phần Dân Cư:</span>
-                </div>
-                <div id="modal-demographics-bars" class="space-y-1.5">
-                    <!-- Progress bars injected by JS -->
-                </div>
+                <div class="text-[11px] font-bold text-gray-300 mb-1.5">Cơ Cấu Thành Phần Dân Cư:</div>
+                <div id="modal-demographics-bars" class="space-y-1.5"></div>
             </div>
         </div>
     </div>
 
-    <!-- Canvas World Map Chính -->
+    <!-- Main Canvas World Map -->
     <canvas id="worldMapCanvas" class="w-full h-full block cursor-grab active:cursor-grabbing"></canvas>
 
-    <!-- World Map Logic Script -->
+    <!-- JavaScript Logic & Engine -->
     <script>
-        // --- CẤU HÌNH BẢN ĐỒ (150 x 80 = 12,000 Ô) ---
+        // --- ĐĂNG KÝ SERVICE WORKER (CHO PWA MOBILE & DESKTOP) ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(() => console.log('PWA SW Registered Successfully'))
+                    .catch(err => console.log('SW Registration Failed:', err));
+            });
+        }
+
+        // Hỗ trợ nút Cài đặt PWA App
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const btnInstall = document.getElementById('btn-install-pwa');
+            btnInstall.classList.remove('hidden');
+            
+            btnInstall.addEventListener('click', () => {
+                btnInstall.classList.add('hidden');
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
+            });
+        });
+
+        // --- CẤU HÌNH BẢN ĐỒ (150 cột x 80 dòng = 12,000 Ô) ---
         const COLS = 150;
         const ROWS = 80;
         const TOTAL_TILES = COLS * ROWS;
         const BASE_HEX_RADIUS = 15;
 
-        // 8 Vùng Biển / Đại Dương
         const SEA_ZONES = [
             { id: 1, name: "Bắc Thái Bình Dương", color: "#0c1e36", border: "#162e4d" },
             { id: 2, name: "Nam Thái Bình Dương", color: "#091b30", border: "#122742" },
@@ -145,15 +241,12 @@
             { id: 8, name: "Biển Trung Địa", color: "#0e243d", border: "#193759" }
         ];
 
-        // 10 Quốc gia giáp ranh
         const NATIONS = [
-            // Cường quốc
             { id: 10, name: "Red Empire", prefix: "Red", color: "#dc2626", borderHex: "#f87171", isMajor: true, startX: 30, startY: 25 },
             { id: 11, name: "Blue Kingdom", prefix: "Blue", color: "#2563eb", borderHex: "#60a5fa", isMajor: true, startX: 110, startY: 25 },
             { id: 12, name: "Green Republic", prefix: "Green", color: "#059669", borderHex: "#34d399", isMajor: true, startX: 42, startY: 38 },
             { id: 13, name: "Yellow Federation", prefix: "Yellow", color: "#d97706", borderHex: "#fbbf24", isMajor: true, startX: 122, startY: 25 },
 
-            // Tiểu quốc
             { id: 14, name: "Purple State", prefix: "Purple", color: "#7c3aed", borderHex: "#a78bfa", isMajor: false, startX: 42, startY: 25 },
             { id: 15, name: "Cyan Duchy", prefix: "Cyan", color: "#0891b2", borderHex: "#22d3ee", isMajor: false, startX: 110, startY: 38 },
             { id: 16, name: "Lime Principality", prefix: "Lime", color: "#65a30d", borderHex: "#a3e635", isMajor: false, startX: 30, startY: 38 },
@@ -162,22 +255,22 @@
             { id: 19, name: "Violet Realm", prefix: "Violet", color: "#9333ea", borderHex: "#c084fc", isMajor: false, startX: 75, startY: 40 }
         ];
 
-        // Mảng lưu dữ liệu Tĩnh của 12,000 ô
-        let mapType = new Uint8Array(TOTAL_TILES);      // 0 = Biển, 1 = Đất Trung Lập, 10..19 = Quốc gia
-        let seaZoneId = new Uint8Array(TOTAL_TILES);    // ID Vùng biển
-        let provinceNum = new Uint16Array(TOTAL_TILES); // Số Tỉnh (Red 1, Red 2,...)
-        let borderFlag = new Uint8Array(TOTAL_TILES);   // Viền biên giới
-        
-        // Dữ liệu chi tiết cho từng ô (Dân số, Công nghiệp, Cơ cấu dân cư)
+        let mapType = new Uint8Array(TOTAL_TILES);
+        let seaZoneId = new Uint8Array(TOTAL_TILES);
+        let provinceNum = new Uint16Array(TOTAL_TILES);
+        let borderFlag = new Uint8Array(TOTAL_TILES);
         let provinceDetails = new Array(TOTAL_TILES);
         let nationDataMap = {};
 
-        // Camera & Control Variables
         let cameraX = 0;
         let cameraY = 0;
         let zoom = 0.85;
         let selectedHexIndex = -1;
 
+        // Trạng thái thao tác Chuột/Touch
+        let isMouseDown = false;
+        let startMouseX = 0;
+        let startMouseY = 0;
         let isDragging = false;
         let touchStartX = 0;
         let touchStartY = 0;
@@ -185,7 +278,6 @@
 
         const canvas = document.getElementById('worldMapCanvas');
         const ctx = canvas.getContext('2d');
-
         const miniCanvas = document.getElementById('miniMapCanvas');
         const miniCtx = miniCanvas.getContext('2d');
 
@@ -195,13 +287,11 @@
             clampCamera();
         }
 
-        // --- KHÓA RÃNH RẠN BOUNDARY CAMERA (Không kéo quá map) ---
         function clampCamera() {
             const radius = BASE_HEX_RADIUS * zoom;
             const totalWorldWidth = Math.sqrt(3) * radius * COLS;
             const totalWorldHeight = (3/2) * radius * ROWS;
 
-            // Giới hạn camera không trôi khỏi ranh giới bản đồ
             const minX = canvas.width - totalWorldWidth;
             const minY = canvas.height - totalWorldHeight;
 
@@ -262,14 +352,12 @@
             return neighbors;
         }
 
-        // --- KHỞI TẠO MAP TĨNH & DỮ LIỆU TỈNH LỘC ---
         function generateMap() {
             mapType.fill(0);
             seaZoneId.fill(1);
             provinceNum.fill(0);
             borderFlag.fill(0);
 
-            // 1. Phân chia Vùng Biển
             for (let r = 0; r < ROWS; r++) {
                 for (let c = 0; c < COLS; c++) {
                     const idx = r * COLS + c;
@@ -287,7 +375,6 @@
                 }
             }
 
-            // 2. Tạo Lục Địa
             const continentSeeds = [
                 { c: 35, r: 30, radius: 25 },
                 { c: 115, r: 30, radius: 25 },
@@ -306,7 +393,6 @@
                 }
             });
 
-            // 3. Khởi tạo 10 Quốc gia Giáp Ranh
             NATIONS.forEach(n => {
                 nationDataMap[n.id] = { ...n };
                 const startIdx = n.startY * COLS + n.startX;
@@ -331,13 +417,16 @@
                 }
             });
 
-            // Căn giữa camera ban đầu
+            resetCamera();
+            recalculateProvincesAndBorders();
+            generateProvinceDetails();
+        }
+
+        function resetCamera() {
             cameraX = canvas.width / 2 - (Math.sqrt(3) * BASE_HEX_RADIUS * zoom * (COLS / 2));
             cameraY = canvas.height / 2 - ((3/2) * BASE_HEX_RADIUS * zoom * (ROWS / 2));
             clampCamera();
-
-            recalculateProvincesAndBorders();
-            generateProvinceDetails();
+            document.getElementById('zoom-text').textContent = `${Math.round(zoom * 100)}%`;
         }
 
         function recalculateProvincesAndBorders() {
@@ -354,7 +443,6 @@
 
                     if (type >= 10) {
                         provinceNum[idx] = counters[type]++;
-
                         const neighbors = getNeighbors(c, r);
                         let isBorder = false;
 
@@ -364,31 +452,22 @@
                                 break;
                             }
                         }
-
                         if (isBorder) borderFlag[idx] = 1;
                     }
                 }
             }
         }
 
-        // --- TẠO DỮ LIỆU DÂN SỐ, CÔNG NGHIỆP & CƠ CẤU DÂN CƯ ---
         function generateProvinceDetails() {
             for (let i = 0; i < TOTAL_TILES; i++) {
                 const type = mapType[i];
 
                 if (type === 0) {
-                    // Biển
-                    provinceDetails[i] = {
-                        type: "Sea",
-                        pop: 0,
-                        industry: 0,
-                        demographics: []
-                    };
+                    provinceDetails[i] = { type: "Sea", pop: 0, industry: 0, demographics: [] };
                 } else if (type === 1) {
-                    // Đất Trung Lập
                     provinceDetails[i] = {
                         type: "Neutral",
-                        pop: (Math.random() * 0.3 + 0.1).toFixed(2), // 0.1M - 0.4M
+                        pop: (Math.random() * 0.3 + 0.1).toFixed(2),
                         industry: Math.floor(Math.random() * 20) + 5,
                         demographics: [
                             { name: "Dân Bản Địa Trung Lập", pct: 85, color: "#9ca3af" },
@@ -396,19 +475,16 @@
                         ]
                     };
                 } else {
-                    // Tỉnh thuộc Quốc Gia
                     const mainNat = nationDataMap[type];
-                    const mainPct = Math.floor(Math.random() * 20) + 75; // 75% - 95% Dân gốc
-                    
-                    // Lấy ngẫu nhiên 1 quốc gia láng giềng chiếm phần trăm còn lại
+                    const mainPct = Math.floor(Math.random() * 20) + 75;
                     const otherNations = NATIONS.filter(n => n.id !== type);
                     const neighborNat = otherNations[Math.floor(Math.random() * otherNations.length)];
                     const remainingPct = 100 - mainPct;
 
                     provinceDetails[i] = {
                         type: "NationProvince",
-                        pop: (Math.random() * 2.5 + 0.5).toFixed(2), // 0.5M - 3.0M Dân
-                        industry: Math.floor(Math.random() * 60) + 35, // 35 - 95
+                        pop: (Math.random() * 2.5 + 0.5).toFixed(2),
+                        industry: Math.floor(Math.random() * 60) + 35,
                         demographics: [
                             { name: `Dân ${mainNat.name}`, pct: mainPct, color: mainNat.color },
                             { name: `Dân ${neighborNat.name}`, pct: remainingPct, color: neighborNat.color }
@@ -418,7 +494,6 @@
             }
         }
 
-        // --- RENDER BẢN ĐỒ CỰC MƯỢT ---
         function renderMap() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -474,16 +549,14 @@
                         }
                     }
 
-                    // Highlight ô đang được Click/Chọn
                     if (isSelected) {
-                        ctx.strokeStyle = "#fbbf24"; // Viền vàng neon
+                        ctx.strokeStyle = "#fbbf24";
                         ctx.lineWidth = 3.0;
                     }
 
                     ctx.fill();
                     ctx.stroke();
 
-                    // Tên Tỉnh (Red 1, Red 2,...)
                     if (type >= 10 && zoom >= 0.75 && pNum > 0) {
                         const nat = nationDataMap[type];
                         ctx.fillStyle = "#ffffff";
@@ -499,7 +572,6 @@
             requestAnimationFrame(renderMap);
         }
 
-        // --- RENDER MINI-MAP & KHUNG NHÌN CAMERA ---
         function renderMiniMap() {
             const mW = miniCanvas.width;
             const mH = miniCanvas.height;
@@ -545,7 +617,6 @@
             miniCtx.fillRect(boxX, boxY, boxW, boxH);
         }
 
-        // --- HIỂN THỊ BẢNG TRA CỨU THÔNG TIN TỈNH ---
         function showProvinceInspector(gridIdx) {
             selectedHexIndex = gridIdx;
             const type = mapType[gridIdx];
@@ -562,7 +633,6 @@
             const demoContainer = document.getElementById('modal-demographics-bars');
 
             if (type === 0) {
-                // Biển
                 const sea = SEA_ZONES[seaZoneId[gridIdx] - 1];
                 typeEl.textContent = "Vùng Biển / Hải Phận";
                 nameEl.textContent = sea.name;
@@ -572,7 +642,6 @@
                 indEl.textContent = "0/100";
                 demoContainer.innerHTML = '<div class="text-gray-500 italic text-[10px]">Không có cư dân sinh sống</div>';
             } else if (type === 1) {
-                // Đất Trung Lập
                 typeEl.textContent = "Vùng Đất Trung Lập";
                 nameEl.textContent = "Neutral Province";
                 ownerNameEl.textContent = "Không Quốc Gia";
@@ -584,7 +653,7 @@
                     <div>
                         <div class="flex justify-between text-[10px] text-gray-300 mb-0.5">
                             <span>${d.name}</span>
-                            <span class="font-bold">${d.pct}%</span>
+                            <span class="font-bold font-mono">${d.pct}%</span>
                         </div>
                         <div class="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
                             <div class="h-full rounded-full" style="width: ${d.pct}%; background-color: ${d.color}"></div>
@@ -592,7 +661,6 @@
                     </div>
                 `).join('');
             } else {
-                // Tỉnh Lộc Quốc Gia
                 const nat = nationDataMap[type];
                 typeEl.textContent = `Tỉnh Lộc thuộc ${nat.name}`;
                 nameEl.textContent = `${nat.prefix} ${pNum}`;
@@ -617,25 +685,88 @@
             modal.classList.remove('hidden');
         }
 
-        // Chạm vào Mini-map để di chuyển góc nhìn
-        miniCanvas.addEventListener('click', (e) => {
-            const rect = miniCanvas.getBoundingClientRect();
-            const clickX = e.clientX - rect.left;
-            const clickY = e.clientY - rect.top;
-
-            const pctX = clickX / miniCanvas.width;
-            const pctY = clickY / miniCanvas.height;
-
-            const radius = BASE_HEX_RADIUS * zoom;
-            const totalWorldPixelW = Math.sqrt(3) * radius * COLS;
-            const totalWorldPixelH = (3/2) * radius * ROWS;
-
-            cameraX = canvas.width / 2 - (pctX * totalWorldPixelW);
-            cameraY = canvas.height / 2 - (pctY * totalWorldPixelH);
-            clampCamera();
+        // --- BỘ ĐIỀU KHIỂN CHUỘT CHO PC / LAPTOP ---
+        canvas.addEventListener('mousedown', (e) => {
+            isMouseDown = true;
+            isDragging = false;
+            startMouseX = e.clientX - cameraX;
+            startMouseY = e.clientY - cameraY;
         });
 
-        // --- BẮT SỰ KIỆN CẢM ỨNG & KÉO DI CHUYỂN MAP ---
+        canvas.addEventListener('mousemove', (e) => {
+            if (isMouseDown) {
+                const dx = Math.abs(e.clientX - (startMouseX + cameraX));
+                const dy = Math.abs(e.clientY - (startMouseY + cameraY));
+                if (dx > 3 || dy > 3) {
+                    isDragging = true;
+                }
+                cameraX = e.clientX - startMouseX;
+                cameraY = e.clientY - startMouseY;
+                clampCamera();
+            }
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            if (!isDragging && isMouseDown) {
+                const grid = getGridCoords(e.clientX, e.clientY);
+                const idx = grid.row * COLS + grid.col;
+                showProvinceInspector(idx);
+            }
+            isMouseDown = false;
+            isDragging = false;
+        });
+
+        // --- BỘ ĐIỀU KHIỂN BÀN PHÍM CHO LAPTOP / PC ---
+        window.addEventListener('keydown', (e) => {
+            const speed = 45;
+            switch (e.key.toLowerCase()) {
+                case 'w':
+                case 'arrowup':
+                    cameraY += speed;
+                    clampCamera();
+                    break;
+                case 's':
+                case 'arrowdown':
+                    cameraY -= speed;
+                    clampCamera();
+                    break;
+                case 'a':
+                case 'arrowleft':
+                    cameraX += speed;
+                    clampCamera();
+                    break;
+                case 'd':
+                case 'arrowright':
+                    cameraX -= speed;
+                    clampCamera();
+                    break;
+                case '+':
+                case '=':
+                    zoom = Math.min(2.5, zoom * 1.15);
+                    clampCamera();
+                    document.getElementById('zoom-text').textContent = `${Math.round(zoom * 100)}%`;
+                    break;
+                case '-':
+                case '_':
+                    zoom = Math.max(0.4, zoom / 1.15);
+                    clampCamera();
+                    document.getElementById('zoom-text').textContent = `${Math.round(zoom * 100)}%`;
+                    break;
+                case 'r':
+                    resetCamera();
+                    break;
+                case 'f':
+                    toggleFullscreen();
+                    break;
+                case 'escape':
+                    document.getElementById('province-modal').classList.add('hidden');
+                    document.getElementById('shortcuts-modal').classList.add('hidden');
+                    selectedHexIndex = -1;
+                    break;
+            }
+        });
+
+        // --- BỘ ĐIỀU KHIỂN CẢM ỨNG CHO MOBILE WEB APP ---
         canvas.addEventListener('touchstart', (e) => {
             if (e.touches.length === 1) {
                 isDragging = true;
@@ -673,20 +804,46 @@
             initialPinchDist = null;
         });
 
-        // Click trực tiếp vào Ô Tỉnh để mở Thẻ Thông Tin Chi Tiết
-        canvas.addEventListener('click', (e) => {
-            const grid = getGridCoords(e.clientX, e.clientY);
-            const idx = grid.row * COLS + grid.col;
-            showProvinceInspector(idx);
+        miniCanvas.addEventListener('click', (e) => {
+            const rect = miniCanvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+
+            const pctX = clickX / miniCanvas.width;
+            const pctY = clickY / miniCanvas.height;
+
+            const radius = BASE_HEX_RADIUS * zoom;
+            const totalWorldPixelW = Math.sqrt(3) * radius * COLS;
+            const totalWorldPixelH = (3/2) * radius * ROWS;
+
+            cameraX = canvas.width / 2 - (pctX * totalWorldPixelW);
+            cameraY = canvas.height / 2 - (pctY * totalWorldPixelH);
+            clampCamera();
         });
 
         canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
-            const factor = e.deltaY < 0 ? 1.1 : 0.9;
+            const factor = e.deltaY < 0 ? 1.12 : 0.88;
             zoom = Math.max(0.4, Math.min(2.5, zoom * factor));
             clampCamera();
             document.getElementById('zoom-text').textContent = `${Math.round(zoom * 100)}%`;
         });
+
+        // --- CÁC NÚT ĐIỀU KHIỂN NỔI UI ---
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen().catch(() => {});
+            }
+        }
+
+        document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
+
+        const shortcutsModal = document.getElementById('shortcuts-modal');
+        document.getElementById('btn-desktop-help').addEventListener('click', () => shortcutsModal.classList.remove('hidden'));
+        document.getElementById('btn-close-shortcuts').addEventListener('click', () => shortcutsModal.classList.add('hidden'));
+        document.getElementById('btn-close-shortcuts-2').addEventListener('click', () => shortcutsModal.classList.add('hidden'));
 
         document.getElementById('btn-close-modal').addEventListener('click', () => {
             document.getElementById('province-modal').classList.add('hidden');
@@ -705,4 +862,3 @@
     </script>
 </body>
 </html>
-
