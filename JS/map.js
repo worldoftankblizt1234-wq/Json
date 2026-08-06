@@ -1,5 +1,4 @@
-
-// === DỮ LIỆU BẢN ĐỒ ===
+// === MAP.JS - BẢN ĐỒ ===
 let mapType = new Uint8Array(CONFIG.COLS * CONFIG.ROWS);
 let seaZoneId = new Uint8Array(CONFIG.COLS * CONFIG.ROWS);
 let provinceNum = new Uint16Array(CONFIG.COLS * CONFIG.ROWS);
@@ -18,6 +17,7 @@ let cameraX = 0, cameraY = 0, zoom = 0.6, selectedHexIndex = -1;
 let isDragging = false, touchStartX = 0, touchStartY = 0;
 let lastTouchDist = 0, initialPinchDist = null;
 
+// === RESIZE ===
 function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -78,6 +78,7 @@ function getNeighbors(c, r) {
     return nb;
 }
 
+// === TẠO BẢN ĐỒ ===
 function generateMap() {
     mapType.fill(0);
     seaZoneId.fill(0);
@@ -103,9 +104,7 @@ function generateMap() {
         for (let r = 0; r < CONFIG.ROWS; r++) {
             for (let c = 0; c < CONFIG.COLS; c++) {
                 const dist = Math.hypot(c - seed.c, r - seed.r);
-                if (dist < radius + (Math.sin(c * 0.2 + r * 0.15) * 3)) {
-                    allPoints.push({ c, r, id: seed.id });
-                }
+                if (dist < radius + (Math.sin(c * 0.2 + r * 0.15) * 3)) allPoints.push({ c, r, id: seed.id });
             }
         }
     }
@@ -130,9 +129,7 @@ function generateMap() {
             for (let i = 0; i < CONFIG.COLS * CONFIG.ROWS; i++) {
                 if (mapType[i] === n.id) {
                     const c = i % CONFIG.COLS, r = Math.floor(i / CONFIG.COLS);
-                    for (const nb of getNeighbors(c, r)) {
-                        if (mapType[nb.index] === 0) borderCells.push(nb.index);
-                    }
+                    for (const nb of getNeighbors(c, r)) if (mapType[nb.index] === 0) borderCells.push(nb.index);
                 }
             }
             let need = target - count;
@@ -153,9 +150,7 @@ function generateMap() {
                 visited.add(idx);
                 count++;
                 const c = idx % CONFIG.COLS, r = Math.floor(idx / CONFIG.COLS);
-                for (const nb of getNeighbors(c, r)) {
-                    if (mapType[nb.index] === 1 && !visited.has(nb.index)) stack.push(nb.index);
-                }
+                for (const nb of getNeighbors(c, r)) if (mapType[nb.index] === 1 && !visited.has(nb.index)) stack.push(nb.index);
             }
             if (count < 10) for (const idx of visited) mapType[idx] = 0;
         }
@@ -176,11 +171,7 @@ function clusterProvinces() {
     const landIndices = [];
     for (let i = 0; i < CONFIG.COLS * CONFIG.ROWS; i++) if (mapType[i] !== 0) landIndices.push(i);
     const nationGroups = {};
-    for (const idx of landIndices) {
-        const type = mapType[idx];
-        if (!nationGroups[type]) nationGroups[type] = [];
-        nationGroups[type].push(idx);
-    }
+    for (const idx of landIndices) { const type = mapType[idx]; if (!nationGroups[type]) nationGroups[type] = []; nationGroups[type].push(idx); }
     const provinceAssign = new Uint16Array(CONFIG.COLS * CONFIG.ROWS);
     let provinceCounter = 1;
     for (const [type, indices] of Object.entries(nationGroups)) {
@@ -194,8 +185,7 @@ function clusterProvinces() {
             while (queue.length > 0 && cluster.length < CONFIG.PROVINCE_MAX_TILES) {
                 const current = queue.shift();
                 cluster.push(current);
-                const c = current % CONFIG.COLS;
-                const r = Math.floor(current / CONFIG.COLS);
+                const c = current % CONFIG.COLS, r = Math.floor(current / CONFIG.COLS);
                 for (const nb of getNeighbors(c, r)) {
                     const nbIdx = nb.index;
                     if (!visited.has(nbIdx) && mapType[nbIdx] === parseInt(type) && remaining.includes(nbIdx)) {
@@ -215,17 +205,11 @@ function clusterProvinces() {
     const provinceIndices = {};
     for (let i = 0; i < CONFIG.COLS * CONFIG.ROWS; i++) {
         const pNum = provinceNum[i];
-        if (pNum !== 0) {
-            if (!provinceIndices[pNum]) provinceIndices[pNum] = [];
-            provinceIndices[pNum].push(i);
-        }
+        if (pNum !== 0) { if (!provinceIndices[pNum]) provinceIndices[pNum] = []; provinceIndices[pNum].push(i); }
     }
     for (const [pNum, indices] of Object.entries(provinceIndices)) {
         let sumC = 0, sumR = 0;
-        for (const idx of indices) {
-            sumC += idx % CONFIG.COLS;
-            sumR += Math.floor(idx / CONFIG.COLS);
-        }
+        for (const idx of indices) { sumC += idx % CONFIG.COLS; sumR += Math.floor(idx / CONFIG.COLS); }
         provinceCenters[pNum] = { c: Math.round(sumC / indices.length), r: Math.round(sumR / indices.length) };
     }
     // Chọn thủ đô ngẫu nhiên
@@ -249,39 +233,18 @@ function computeRegionLabels() {
     const groups = {};
     for (let i = 0; i < CONFIG.COLS * CONFIG.ROWS; i++) {
         const type = mapType[i];
-        if (type === 0) {
-            const sId = seaZoneId[i];
-            const key = 'sea_' + sId;
-            if (!groups[key]) groups[key] = { sumC: 0, sumR: 0, count: 0 };
-            const c = i % CONFIG.COLS, r = Math.floor(i / CONFIG.COLS);
-            groups[key].sumC += c; groups[key].sumR += r; groups[key].count++;
-        } else if (type === 1) {
-            const key = 'neutral';
-            if (!groups[key]) groups[key] = { sumC: 0, sumR: 0, count: 0 };
-            const c = i % CONFIG.COLS, r = Math.floor(i / CONFIG.COLS);
-            groups[key].sumC += c; groups[key].sumR += r; groups[key].count++;
-        } else {
-            const key = 'nation_' + type;
-            if (!groups[key]) groups[key] = { sumC: 0, sumR: 0, count: 0 };
-            const c = i % CONFIG.COLS, r = Math.floor(i / CONFIG.COLS);
-            groups[key].sumC += c; groups[key].sumR += r; groups[key].count++;
-        }
+        if (type === 0) { const sId = seaZoneId[i]; const key = 'sea_' + sId; if (!groups[key]) groups[key] = { sumC: 0, sumR: 0, count: 0 }; const c = i % CONFIG.COLS, r = Math.floor(i / CONFIG.COLS); groups[key].sumC += c; groups[key].sumR += r; groups[key].count++; }
+        else if (type === 1) { const key = 'neutral'; if (!groups[key]) groups[key] = { sumC: 0, sumR: 0, count: 0 }; const c = i % CONFIG.COLS, r = Math.floor(i / CONFIG.COLS); groups[key].sumC += c; groups[key].sumR += r; groups[key].count++; }
+        else { const key = 'nation_' + type; if (!groups[key]) groups[key] = { sumC: 0, sumR: 0, count: 0 }; const c = i % CONFIG.COLS, r = Math.floor(i / CONFIG.COLS); groups[key].sumC += c; groups[key].sumR += r; groups[key].count++; }
     }
     regionLabels = [];
     for (const [key, data] of Object.entries(groups)) {
-        const cAvg = data.sumC / data.count;
-        const rAvg = data.sumR / data.count;
+        const cAvg = data.sumC / data.count, rAvg = data.sumR / data.count;
         const c = Math.round(cAvg), r = Math.round(rAvg);
         let name = '';
-        if (key.startsWith('nation_')) {
-            const id = parseInt(key.split('_')[1]);
-            const nat = NATIONS.find(n => n.id === id);
-            if (nat) name = nat.prefix;
-        } else if (key.startsWith('sea_')) {
-            const sId = parseInt(key.split('_')[1]);
-            const sea = SEA_ZONES.find(s => s.id === sId);
-            if (sea) name = sea.name;
-        } else if (key === 'neutral') name = 'Trung Lập';
+        if (key.startsWith('nation_')) { const id = parseInt(key.split('_')[1]); const nat = NATIONS.find(n => n.id === id); if (nat) name = nat.prefix; }
+        else if (key.startsWith('sea_')) { const sId = parseInt(key.split('_')[1]); const sea = SEA_ZONES.find(s => s.id === sId); if (sea) name = sea.name; }
+        else if (key === 'neutral') name = 'Trung Lập';
         if (name) regionLabels.push({ name, c, r });
     }
 }
@@ -303,12 +266,7 @@ function renderMap() {
         for (let i = 0; i < CONFIG.COLS * CONFIG.ROWS; i++) {
             const type = mapType[i];
             let key = type === 0 ? 'sea_' + seaZoneId[i] : type === 1 ? 'neutral' : 'nation_' + type;
-            if (!regionMap[key]) {
-                regionMap[key] = { color: '#333', tiles: [] };
-                if (type === 0) { const sea = SEA_ZONES[seaZoneId[i] - 1]; regionMap[key].color = sea ? sea.color : '#0a1d33'; }
-                else if (type === 1) regionMap[key].color = '#2d3748';
-                else { const nat = NATIONS.find(n => n.id === type); regionMap[key].color = nat ? nat.color : '#fff'; }
-            }
+            if (!regionMap[key]) { regionMap[key] = { color: '#333', tiles: [] }; if (type === 0) { const sea = SEA_ZONES[seaZoneId[i] - 1]; regionMap[key].color = sea ? sea.color : '#0a1d33'; } else if (type === 1) regionMap[key].color = '#2d3748'; else { const nat = NATIONS.find(n => n.id === type); regionMap[key].color = nat ? nat.color : '#fff'; } }
             regionMap[key].tiles.push(i);
         }
         for (const [key, region] of Object.entries(regionMap)) {
@@ -340,7 +298,6 @@ function renderMap() {
                 ctx.stroke();
             }
         }
-        // Tên vùng
         for (const label of regionLabels) {
             const { x, y } = getPixelCoords(label.c, label.r);
             if (x > -50 && x < canvas.width + 50 && y > -50 && y < canvas.height + 50) {
@@ -422,6 +379,34 @@ function renderMap() {
                 ctx.fill();
             }
         }
+        // Tên người chơi trên map
+        if (game) {
+            for (const [id, nation] of Object.entries(game.nations)) {
+                if (nation.isPlayer && nation.playerName) {
+                    const provinces = nation.provinces || [];
+                    if (provinces.length > 0) {
+                        let sumC = 0, sumR = 0, count = 0;
+                        for (const pNum of provinces) {
+                            const center = provinceCenters[pNum];
+                            if (center) { sumC += center.c; sumR += center.r; count++; }
+                        }
+                        if (count > 0) {
+                            const c = Math.round(sumC / count);
+                            const r = Math.round(sumR / count);
+                            const { x, y } = getPixelCoords(c, r);
+                            ctx.fillStyle = '#ffffff';
+                            ctx.font = `bold ${Math.floor(8 * zoom + 6)}px sans-serif`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.shadowColor = 'rgba(0,0,0,0.9)';
+                            ctx.shadowBlur = 6;
+                            ctx.fillText(`👤 ${nation.playerName}`, x, y - 20 * zoom);
+                            ctx.shadowBlur = 0;
+                        }
+                    }
+                }
+            }
+        }
     }
     renderMiniMap();
 }
@@ -457,7 +442,6 @@ function renderMiniMap() {
             miniCtx.fillRect(c * cellW, r * cellH, cellW * 2, cellH * 2);
         }
     }
-    // Sao trên mini map
     for (const [nationId, pNum] of Object.entries(capitalProvinces)) {
         const center = provinceCenters[pNum];
         if (center) {
@@ -469,7 +453,6 @@ function renderMiniMap() {
             miniCtx.fillText('⭐', x, y);
         }
     }
-    // Khung viewport
     const radius = CONFIG.BASE_HEX_RADIUS * zoom;
     const totalW = Math.sqrt(3) * radius * CONFIG.COLS;
     const totalH = (3/2) * radius * CONFIG.ROWS;
