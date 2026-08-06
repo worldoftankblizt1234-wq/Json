@@ -356,4 +356,61 @@ function handleTouchStart(e) {
         touchStartX = e.touches[0].clientX - cameraX;
         touchStartY = e.touches[0].clientY - cameraY;
         initialPinchDist = null;
-   
+    } else if (e.touches.length === 2) {
+        isDragging = false;
+        initialPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        lastTouchDist = initialPinchDist;
+    }
+}
+
+function handleTouchMove(e) {
+    e.preventDefault();
+    if (e.touches.length === 1 && isDragging) {
+        cameraX = e.touches[0].clientX - touchStartX;
+        cameraY = e.touches[0].clientY - touchStartY;
+        clampCamera();
+    } else if (e.touches.length === 2 && initialPinchDist) {
+        const touch1 = e.touches[0], touch2 = e.touches[1];
+        const rect = canvas.getBoundingClientRect();
+        const centerX = (touch1.clientX + touch2.clientX) / 2 - rect.left;
+        const centerY = (touch1.clientY + touch2.clientY) / 2 - rect.top;
+        const oldZoom = zoom;
+        const currentDist = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
+        const factor = currentDist / lastTouchDist;
+        const newZoom = Math.max(CONFIG.MIN_ZOOM, Math.min(CONFIG.MAX_ZOOM, oldZoom * factor));
+        const worldX = (centerX - cameraX) / oldZoom;
+        const worldY = (centerY - cameraY) / oldZoom;
+        zoom = newZoom;
+        cameraX = centerX - worldX * zoom;
+        cameraY = centerY - worldY * zoom;
+        clampCamera();
+        document.getElementById('zoom-text').textContent = Math.round(zoom * 100) + '%';
+        lastTouchDist = currentDist;
+    }
+}
+
+function handleTouchEnd() {
+    isDragging = false;
+    initialPinchDist = null;
+    lastTouchDist = 0;
+}
+
+function handleMiniMapClick(e) {
+    const rect = miniCanvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / miniCanvas.width;
+    const y = (e.clientY - rect.top) / miniCanvas.height;
+    const radius = CONFIG.BASE_HEX_RADIUS * zoom;
+    const totalW = Math.sqrt(3) * radius * CONFIG.COLS;
+    const totalH = (3/2) * radius * CONFIG.ROWS;
+    cameraX = canvas.width / 2 - x * totalW;
+    cameraY = canvas.height / 2 - y * totalH;
+    clampCamera();
+}
+
+function updateNationInfo() {
+    if (!game) return;
+    const nation = game.nations[game.playerNationId];
+    if (!nation) return;
+    document.getElementById('nation-name-display').textContent = nation.name;
+    document.getElementById('nation-color-display').style.background = nation.color;
+}
