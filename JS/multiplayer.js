@@ -1,11 +1,14 @@
-// === MULTIPLAYER - FIREBASE ===
+// === MULTIPLAYER.JS - FIREBASE ===
+
 class MultiplayerManager {
     constructor() {
-        this.roomId = 'aoh_game_room';
+        this.roomId = 'aoh_global_lobby';
         this.playerId = this.getPlayerId();
         this.isConnected = false;
         this.db = null;
         this.gameDataRef = null;
+        this.lobbyRef = null;
+        this.isOffline = false;
     }
 
     getPlayerId() {
@@ -17,26 +20,33 @@ class MultiplayerManager {
         return id;
     }
 
+    // === KẾT NỐI ===
     connect() {
-        console.log('🔄 Đang kết nối Firebase...');
         try {
-            // Firebase đã được import từ firebase-config.js
             if (typeof firebase !== 'undefined' && firebase.database) {
                 this.db = firebase.database();
                 this.gameDataRef = this.db.ref(`games/${this.roomId}`);
+                this.lobbyRef = this.db.ref(`lobby/${this.roomId}`);
                 this.isConnected = true;
                 this.listenGameData();
+                this.listenLobby();
                 console.log('✅ Đã kết nối Firebase!');
+                return true;
             } else {
-                console.warn('⚠️ Firebase chưa được cấu hình, chuyển sang offline mode');
+                console.warn('⚠️ Firebase chưa sẵn sàng, chạy offline mode');
+                this.isOffline = true;
                 this.isConnected = false;
+                return true;
             }
         } catch (e) {
             console.warn('⚠️ Lỗi kết nối Firebase:', e);
+            this.isOffline = true;
             this.isConnected = false;
+            return true;
         }
     }
 
+    // === LẮNG NGHE GAME DATA ===
     listenGameData() {
         if (!this.gameDataRef) return;
         this.gameDataRef.on('value', (snapshot) => {
@@ -47,6 +57,18 @@ class MultiplayerManager {
         });
     }
 
+    // === LẮNG NGHE LOBBY ===
+    listenLobby() {
+        if (!this.lobbyRef) return;
+        this.lobbyRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data && lobby) {
+                lobby.onLobbyUpdate(data);
+            }
+        });
+    }
+
+    // === ĐỒNG BỘ GAME DATA ===
     syncGameData(data) {
         if (!this.isConnected || !this.gameDataRef) return;
         this.gameDataRef.set({
@@ -56,10 +78,9 @@ class MultiplayerManager {
         }).catch(err => console.error('❌ Lỗi sync:', err));
     }
 
+    // === NHẬN GAME DATA ===
     onGameDataUpdate(data) {
-        console.log('📥 Nhận dữ liệu từ server');
         if (!game) return;
-        
         // Đồng bộ nations
         for (const [id, nationData] of Object.entries(data.nations || {})) {
             if (game.nations[id]) {
@@ -69,9 +90,12 @@ class MultiplayerManager {
                 game.nations[id].provinces = nationData.provinces || [];
                 game.nations[id].buildings = nationData.buildings || [];
                 game.nations[id].isAlive = nationData.isAlive !== false;
+                game.nations[id].scienceLevel = nationData.scienceLevel || 0;
+                game.nations[id].happiness = nationData.happiness || 75;
+                game.nations[id].inflation = nationData.inflation || 0;
+                game.nations[id].policies = nationData.policies || {};
             }
         }
-        
         // Đồng bộ provinces
         for (const [id, provinceData] of Object.entries(data.provinces || {})) {
             if (game.provinces[id]) {
@@ -79,18 +103,19 @@ class MultiplayerManager {
                 game.provinces[id].population = provinceData.population || 0;
                 game.provinces[id].army = provinceData.army || 0;
                 game.provinces[id].buildings = provinceData.buildings || [];
+                game.provinces[id].development = provinceData.development || 0;
             }
         }
-        
         if (data.gameTime) game.gameTime = data.gameTime;
+        if (data.gameDate) game.gameDate = data.gameDate;
         updateUI();
         renderMap();
     }
 
+    // === NGẮT KẾT NỐI ===
     disconnect() {
-        if (this.gameDataRef) {
-            this.gameDataRef.off();
-        }
+        if (this.gameDataRef) this.gameDataRef.off();
+        if (this.lobbyRef) this.lobbyRef.off();
         this.isConnected = false;
         console.log('🔌 Đã ngắt kết nối Firebase');
     }
