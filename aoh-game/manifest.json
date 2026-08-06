@@ -1,0 +1,22 @@
+{
+    "name": "Age of History",
+    "short_name": "AoH",
+    "description": "Game chiến lược đa người chơi",
+    "start_url": "index.html",
+    "display": "fullscreen",
+    "orientation": "landscape",
+    "background_color": "#030712",
+    "theme_color": "#030712",
+    "icons": [
+        {
+            "src": "https://cdn-icons-png.flaticon.com/512/854/854878.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "https://cdn-icons-png.flaticon.com/512/854/854878.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}
