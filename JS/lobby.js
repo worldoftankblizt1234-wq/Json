@@ -10,6 +10,7 @@ class LobbyManager {
         this.playerId = this.getPlayerId();
         this.isHost = false;
         this.hostId = null;
+        this.isOffline = false;
     }
 
     getPlayerId() {
@@ -31,14 +32,31 @@ class LobbyManager {
                 console.log('✅ Đã kết nối Lobby!');
                 return true;
             } else {
-                // Fallback: chạy offline với AI
                 console.warn('⚠️ Firebase chưa sẵn sàng, chạy offline mode');
                 this.isOffline = true;
+                this.isHost = true;
+                this.hostId = this.playerId;
+                this.players[this.playerId] = {
+                    playerId: this.playerId,
+                    playerName: currentPlayer || 'Player',
+                    nationId: null,
+                    isReady: false
+                };
+                this.updateLobbyUI();
                 return true;
             }
         } catch (e) {
             console.warn('⚠️ Không thể kết nối Firebase:', e);
             this.isOffline = true;
+            this.isHost = true;
+            this.hostId = this.playerId;
+            this.players[this.playerId] = {
+                playerId: this.playerId,
+                playerName: currentPlayer || 'Player',
+                nationId: null,
+                isReady: false
+            };
+            this.updateLobbyUI();
             return true;
         }
     }
@@ -88,11 +106,43 @@ class LobbyManager {
         });
     }
 
+    // === NHẬN CẬP NHẬT LOBBY ===
+    onLobbyUpdate(data) {
+        this.players = data.players || {};
+        this.nationStatus = data.nationStatus || {};
+        this.hostId = data.hostId || null;
+        this.isHost = (this.hostId === this.playerId);
+        this.updateLobbyUI();
+    }
+
     // === THAM GIA PHÒNG ===
     joinLobby(nationId) {
-        if (!this.db) return false;
+        if (this.isGameStarted) {
+            showToast('❌ Game đã bắt đầu!', 'error');
+            return false;
+        }
         
         const playerName = currentPlayer || localStorage.getItem('aoh_player_name') || 'Player';
+        
+        if (this.isOffline) {
+            // Offline mode: chọn trực tiếp
+            this.players[this.playerId] = {
+                playerId: this.playerId,
+                playerName: playerName,
+                nationId: nationId,
+                isReady: true
+            };
+            this.nationStatus[nationId] = {
+                taken: true,
+                playerId: this.playerId,
+                playerName: playerName
+            };
+            this.updateLobbyUI();
+            showToast(`✅ Đã chọn ${NATIONS.find(n => n.id === nationId)?.name}`, 'success');
+            return true;
+        }
+        
+        if (!this.db) return false;
         
         // Kiểm tra nước đã có người chơi chưa
         const nationRef = this.db.ref(`lobby/${this.roomId}/nationStatus/${nationId}`);
@@ -117,7 +167,7 @@ class LobbyManager {
                 playerId: this.playerId,
                 playerName: playerName,
                 nationId: nationId,
-                isReady: false,
+                isReady: true,
                 timestamp: Date.now()
             });
             
@@ -128,6 +178,11 @@ class LobbyManager {
 
     // === RỜI PHÒNG ===
     leaveLobby() {
+        if (this.isOffline) {
+            document.getElementById('lobby-modal')?.remove();
+            showLogin();
+            return;
+        }
         if (!this.db) return;
         
         // Xóa người chơi
@@ -150,7 +205,7 @@ class LobbyManager {
         const players = Object.values(this.players || {});
         const playerCount = players.length;
         
-        // Kiểm tra tất cả người chơi đã chọn nước chưa
+        // Kiểm tra tất cả đã chọn nước chưa
         const allReady = players.every(p => p.nationId !== undefined && p.nationId !== null);
         const canStart = playerCount >= 2 && allReady && this.isHost;
         
@@ -221,6 +276,7 @@ class LobbyManager {
             </button>
             ${canStart ? `<p class="text-green-400 text-[8px] text-center mt-1">✅ Tất cả đã sẵn sàng! Host bấm bắt đầu</p>` : ''}
             ${!this.isHost && playerCount >= 2 ? `<p class="text-yellow-400 text-[8px] text-center mt-1">⏳ Đang chờ host...</p>` : ''}
+            ${playerCount < 2 ? `<p class="text-gray-400 text-[8px] text-center mt-1">⏳ Cần ít nhất 2 người chơi</p>` : ''}
         `;
         
         // Gắn sự kiện start game
@@ -232,7 +288,7 @@ class LobbyManager {
     // === BẮT ĐẦU GAME ===
     startGame() {
         if (this.isGameStarted) return;
-        if (!this.isHost) {
+        if (!this.isHost && !this.isOffline) {
             showToast('❌ Chỉ host mới có thể bắt đầu!', 'error');
             return;
         }
