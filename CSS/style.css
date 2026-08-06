@@ -31,17 +31,42 @@ html, body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    padding: 20px;
+}
+
+#rotate-warning .text-6xl {
+    animation: rotatePhone 2s ease-in-out infinite;
+}
+
+@keyframes rotatePhone {
+    0%, 100% { transform: rotate(0deg); }
+    50% { transform: rotate(90deg); }
 }
 
 @media screen and (max-width: 768px) and (orientation: portrait) {
     #rotate-warning {
         display: flex !important;
     }
+    #game-container {
+        display: none !important;
+    }
 }
 
 @media screen and (max-width: 768px) and (orientation: landscape) {
     #rotate-warning {
         display: none !important;
+    }
+    #game-container {
+        display: block !important;
+    }
+}
+
+@media (min-width: 769px) {
+    #rotate-warning {
+        display: none !important;
+    }
+    #game-container {
+        display: block !important;
     }
 }
 
@@ -61,13 +86,13 @@ html, body {
 /* ====== MINI MAP ====== */
 #mini-map-container {
     position: fixed;
-    bottom: 52px;
-    right: 4px;
+    bottom: 55px;
+    right: 6px;
     z-index: 30;
     background: rgba(15, 23, 42, 0.85);
     border: 1px solid rgba(99, 102, 241, 0.2);
     border-radius: 8px;
-    padding: 3px;
+    padding: 4px;
     backdrop-filter: blur(8px);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
@@ -75,14 +100,14 @@ html, body {
     display: block;
     border-radius: 4px;
     cursor: pointer;
-    width: 80px;
-    height: 44px;
+    width: 100px;
+    height: 56px;
 }
 
 /* ====== TOP BAR ====== */
 #top-bar {
-    height: 28px;
-    padding: 2px 6px;
+    height: 32px;
+    padding: 2px 8px;
     background: rgba(15, 23, 42, 0.92);
     backdrop-filter: blur(12px);
     border-bottom: 1px solid rgba(99, 102, 241, 0.1);
@@ -91,48 +116,65 @@ html, body {
     white-space: nowrap;
 }
 
-/* ====== GAME CONTROLS ====== */
-#game-controls {
-    height: 38px;
-    padding: 2px 4px;
+/* ====== FLAGS ====== */
+#flag-left, #flag-right {
+    transition: all 0.2s;
+}
+#flag-left:hover, #flag-right:hover {
+    transform: scale(1.05);
+}
+
+/* ====== NOTIFICATION ====== */
+#notification-container {
+    pointer-events: none;
+}
+#notification-text {
+    transition: all 0.3s;
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+/* ====== PROVINCE MENU ====== */
+#province-menu {
+    height: 50px;
+    padding: 4px 8px;
     background: rgba(15, 23, 42, 0.95);
     backdrop-filter: blur(12px);
     border-top: 1px solid rgba(99, 102, 241, 0.1);
 }
-#game-controls button {
-    font-size: 8px;
-    padding: 2px 4px;
-    min-height: 22px;
+#province-menu button {
+    font-size: 10px;
+    padding: 4px 10px;
+    min-height: 28px;
     white-space: nowrap;
-    border-radius: 6px;
-}
-#game-controls button.active {
-    background: rgba(99, 102, 241, 0.4);
-    border-color: #6366f1;
-    box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
 }
 
 /* ====== MODALS ====== */
 #province-modal {
-    max-width: 220px;
+    max-width: 260px;
     max-height: 55vh;
-    font-size: 9px;
-    padding: 8px;
-}
-#build-menu, #diplomacy-menu {
-    max-width: 85vw;
-    width: 280px;
-    padding: 10px;
     font-size: 10px;
-}
-#nations-list-modal .bg-gray-900 {
-    max-width: 95vw;
     padding: 10px;
 }
+#add-menu, #nation-menu-modal, #diplomacy-modal {
+    max-width: 90vw;
+    width: 340px;
+    padding: 12px;
+    font-size: 11px;
+}
+#trade-popup, #treaty-popup {
+    max-width: 90vw;
+    width: 380px;
+}
+
+/* ====== SCROLLBAR ====== */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.4); border-radius: 4px; }
 
 /* ====== TOAST ====== */
 #toast-container {
-    top: 34px;
+    top: 40px;
     pointer-events: none;
 }
 .toast {
@@ -140,9 +182,9 @@ html, body {
     backdrop-filter: blur(12px);
     border: 1px solid rgba(99, 102, 241, 0.3);
     color: #f1f5f9;
-    padding: 4px 12px;
-    border-radius: 8px;
-    font-size: 10px;
+    padding: 6px 16px;
+    border-radius: 10px;
+    font-size: 11px;
     font-weight: 600;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
     animation: slideDown 0.3s ease;
@@ -155,40 +197,37 @@ html, body {
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* ====== SCROLLBAR ====== */
-::-webkit-scrollbar { width: 3px; }
-::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 4px; }
-::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.4); border-radius: 4px; }
-
-/* ====== LANDSCAPE ====== */
+/* ====== RESPONSIVE LANDSCAPE ====== */
 @media (orientation: landscape) {
-    #top-bar { height: 32px; font-size: 10px; padding: 2px 10px; }
-    #game-controls { height: 44px; }
-    #game-controls button { font-size: 10px; padding: 3px 8px; min-height: 26px; }
-    #mini-map-container { bottom: 54px; right: 6px; padding: 4px; }
-    #miniMapCanvas { width: 120px; height: 67px; }
+    #top-bar { height: 36px; font-size: 10px; padding: 2px 12px; }
+    #province-menu { height: 54px; }
+    #province-menu button { font-size: 11px; padding: 5px 12px; }
+    #mini-map-container { bottom: 62px; right: 8px; padding: 5px; }
+    #miniMapCanvas { width: 130px; height: 72px; }
 }
 
-/* ====== TABLET & DESKTOP ====== */
+/* ====== RESPONSIVE TABLET ====== */
 @media (min-width: 768px) {
-    #top-bar { height: 40px; font-size: 13px; padding: 4px 20px; }
-    #game-controls { height: 56px; padding: 4px 16px; }
-    #game-controls button { font-size: 13px; padding: 6px 16px; min-height: 34px; border-radius: 10px; }
-    #mini-map-container { bottom: 70px; right: 12px; padding: 6px; border-radius: 12px; }
+    #top-bar { height: 44px; font-size: 13px; padding: 4px 20px; }
+    #province-menu { height: 62px; padding: 6px 16px; }
+    #province-menu button { font-size: 13px; padding: 6px 16px; min-height: 36px; }
+    #mini-map-container { bottom: 74px; right: 12px; padding: 6px; border-radius: 12px; }
     #miniMapCanvas { width: 180px; height: 100px; }
-    #province-modal { max-width: 340px; font-size: 13px; padding: 16px; }
+    #province-modal { max-width: 360px; font-size: 13px; padding: 16px; }
     .toast { font-size: 14px; padding: 8px 24px; }
 }
 
-/* ====== MOBILE LANDSCAPE ====== */
+/* ====== RESPONSIVE MOBILE LANDSCAPE ====== */
 @media (max-width: 768px) and (orientation: landscape) {
-    #top-bar { height: 26px; font-size: 8px; padding: 1px 4px; }
+    #top-bar { height: 28px; font-size: 8px; padding: 1px 4px; }
     #top-bar .flex { gap: 2px; }
-    #game-controls { height: 34px; padding: 1px 2px; }
-    #game-controls button { font-size: 7px; padding: 1px 3px; min-height: 18px; border-radius: 4px; }
-    #mini-map-container { bottom: 40px; right: 2px; padding: 2px; border-radius: 4px; }
-    #miniMapCanvas { width: 60px; height: 33px; }
-    #province-modal { max-width: 160px; font-size: 8px; padding: 6px; top: 32px; left: 2px; }
-    .toast { font-size: 8px; padding: 2px 8px; top: 30px; }
-    #build-menu, #diplomacy-menu { width: 220px; padding: 6px; font-size: 8px; }
+    #province-menu { height: 40px; padding: 2px 4px; }
+    #province-menu button { font-size: 8px; padding: 2px 6px; min-height: 22px; border-radius: 6px; }
+    #mini-map-container { bottom: 46px; right: 3px; padding: 2px; border-radius: 4px; }
+    #miniMapCanvas { width: 70px; height: 39px; }
+    #province-modal { max-width: 180px; font-size: 8px; padding: 6px; top: 34px; left: 2px; }
+    .toast { font-size: 8px; padding: 3px 10px; top: 34px; }
+    #add-menu, #nation-menu-modal, #diplomacy-modal { width: 240px; padding: 8px; font-size: 9px; }
+    #flag-left, #flag-right { top: 34px; }
+    #flag-left .w-10, #flag-right .w-10 { width: 28px; height: 28px; font-size: 14px; }
 }
