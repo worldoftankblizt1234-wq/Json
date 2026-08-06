@@ -770,4 +770,30 @@ class AoHGame {
                 isPlayer: nation.isPlayer,
                 scienceLevel: nation.scienceLevel,
                 happiness: nation.happiness,
-                inflation: nation.in
+                inflation: nation.inflation,
+                policies: nation.policies
+            };
+        }
+        for (const [id, province] of Object.entries(this.provinces)) {
+            gameData.provinces[id] = {
+                nationId: province.nationId,
+                population: province.population,
+                army: province.army,
+                buildings: province.buildings,
+                isCapital: province.isCapital || false,
+                development: province.development || 0
+            };
+        }
+        this.multiplayer.syncGameData(gameData);
+    }
+
+    // === ĐỊNH DẠNG THỜI GIAN ===
+    formatTime(seconds) {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = Math.floor(seconds % 60);
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+}
+
+let game = null;
